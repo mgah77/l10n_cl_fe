@@ -1,16 +1,16 @@
 {
     "name": """Facturación Electrónica para Chile\
     """,
-    "version": "0.123",
+    "version": "0.43.2",
     "countries": ["cl"],
     "category": "Accounting/Localizations",
     "sequence": 12,
-    "author": "Daniel Santibáñez Polanco",
-    "website": 
+    "author": "Daniel Santibáñez Polanco, Cooperativa OdooCoop",
+    "website": "https://globalresponse.cl",
     "license": "AGPL-3",
-    "summary": "Facturación Electrónica para Chile. ",
+    "summary": "Facturación Electrónica para Chile. Mayor información en https://globalresponse.cl",
     "description": """
-Facturación Electrónica para Chile. Parchada.
+Facturación Electrónica para Chile. Mayor información en https://globalresponse.cl
 """,
     "depends": [
         "base",
