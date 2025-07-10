@@ -922,12 +922,154 @@ class UploadXMLWizard(models.TransientModel):
         return self.env["account.move"].search(query)
 
     def _create_inv(self, documento, company_id):
-        inv = self._inv_exist(documento)
-        if inv:
-            return inv
-        data = self._get_data(documento, company_id)
-        inv = self.env["account.move"].create(data)
-        return inv
+        self.ensure_one()
+        user_id = self.env.uid
+
+        encabezado = documento.find("Encabezado")
+        IdDoc = encabezado.find("IdDoc")
+        Totales = encabezado.find("Totales")
+        folio = IdDoc.find("Folio").text
+        fecha = IdDoc.find("FchEmis").text
+        neto = float(Totales.find("MntNeto").text or 0)
+        iva = float(Totales.find("IVA").text or 0)
+        total = float(Totales.find("MntTotal").text or 0)
+
+        partner_vat = self.format_rut(documento.find("Encabezado/Emisor/RUTEmisor").text)
+        partner = self.env['res.partner'].search([('vat', '=', partner_vat)], limit=1)
+        if not partner:
+            raise UserError("Partner no encontrado para el RUT: %s" % partner_vat)
+
+        journal = self.env['account.journal'].search([
+            ('type', '=', 'purchase'),
+            ('company_id', '=', company_id.id)
+        ], limit=1)
+        if not journal:
+            raise UserError("No hay diario de compras definido para la compañía")
+
+        cuenta_compra = self.env['account.account'].search([
+            ('user_type_id.type', '=', 'expense'),
+            ('company_id', '=', company_id.id)
+        ], limit=1)
+        cuenta_iva = self.env['account.account'].search([
+            ('user_type_id.type', '=', 'tax'),
+            ('company_id', '=', company_id.id)
+        ], limit=1)
+
+        if not cuenta_compra or not cuenta_iva:
+            raise UserError("Faltan cuentas contables para compras o IVA")
+
+        move = self.env['account.move'].create({
+            'name': 'FAC' + folio,
+            'move_type': 'in_invoice',
+            'partner_id': partner.id,
+            'company_id': company_id.id,
+            'journal_id': journal.id,
+            'invoice_date': fecha,
+            'date': fecha,
+            'amount_untaxed': neto,
+            'amount_tax': iva,
+            'amount_total': total,
+            'state': 'draft',
+        })
+        move_id = move.id
+        move_name = move.name
+        currency_id = company_id.currency_id.id
+        company_currency_id = currency_id
+
+        detalles = documento.findall("Detalle")
+        for index, linea in enumerate(detalles, start=1):
+            line_vals = self._prepare_line(
+                linea,
+                move_type='in_invoice',
+                company_id=company_id,
+                fpos_id=None,
+                price_included=False,
+                exenta=False
+            )
+            if not line_vals:
+                continue
+
+            product_id = line_vals.get('product_id')
+            qty = float(line_vals.get('quantity') or 1.0)
+            price_unit = float(line_vals['price_unit'])
+            subtotal = float(line_vals['price_subtotal'])
+            discount = float(line_vals.get('discount') or 0)
+            name = line_vals['name']
+            sequence = index * 10
+            uom_id = product_id and self.env['product.product'].browse(product_id).uom_id.id or None
+
+            self.env.cr.execute("""
+                INSERT INTO account_move_line (
+                    move_id, name, product_id, account_id,
+                    quantity, price_unit, discount,
+                    debit, credit, balance,
+                    display_type,
+                    partner_id, move_name, company_id, journal_id,
+                    company_currency_id, currency_id, date,
+                    sequence, product_uom_id,
+                    amount_currency, price_subtotal, price_total, tax_base_amount,
+                    create_uid, create_date, write_uid, write_date
+                )
+                VALUES (
+                    %s, %s, %s, %s,
+                    %s, %s, %s,
+                    %s, %s, %s,
+                    %s,
+                    %s, %s, %s, %s,
+                    %s, %s, %s,
+                    %s, %s,
+                    %s, %s, %s, %s,
+                    %s, now(), %s, now()
+                )
+            """, (
+                move_id, name, product_id, cuenta_compra.id,
+                qty, price_unit, discount,
+                subtotal, 0.0, subtotal,
+                'product',
+                partner.id, move_name, company_id.id, journal.id,
+                company_currency_id, currency_id, fecha,
+                sequence, uom_id,
+                subtotal, subtotal, subtotal, subtotal,
+                user_id, user_id
+            ))
+
+        if iva > 0:
+            self.env.cr.execute("""
+                INSERT INTO account_move_line (
+                    move_id, name, account_id,
+                    quantity, price_unit,
+                    debit, credit, balance,
+                    display_type,
+                    partner_id, move_name, company_id, journal_id,
+                    company_currency_id, currency_id, date,
+                    sequence,
+                    amount_currency, price_subtotal, price_total, tax_base_amount,
+                    create_uid, create_date, write_uid, write_date
+                )
+                VALUES (
+                    %s, %s, %s,
+                    %s, %s,
+                    %s, %s, %s,
+                    %s,
+                    %s, %s, %s, %s,
+                    %s, %s, %s,
+                    %s,
+                    %s, %s, %s, %s,
+                    %s, now(), %s, now()
+                )
+            """, (
+                move_id, 'IVA 19%', cuenta_iva.id,
+                1, iva,
+                iva, 0.0, iva,
+                'tax',
+                partner.id, move_name, company_id.id, journal.id,
+                company_currency_id, currency_id, fecha,
+                9999,
+                iva, 0.0, iva, 0.0,
+                user_id, user_id
+            ))
+
+        return move
 
     def _dte_exist(self, documento):
         encabezado = documento.find("Encabezado")
