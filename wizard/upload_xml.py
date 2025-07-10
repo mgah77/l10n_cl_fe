@@ -947,11 +947,11 @@ class UploadXMLWizard(models.TransientModel):
             raise UserError("No hay diario de compras definido para la compañía")
 
         cuenta_compra = self.env['account.account'].search([
-            ('user_type_id.type', '=', 'expense'),
+            ('account_type', '=', 'expense'),
             ('company_id', '=', company_id.id)
         ], limit=1)
         cuenta_iva = self.env['account.account'].search([
-            ('user_type_id.type', '=', 'tax'),
+            ('account_type', '=', 'asset_current'),
             ('company_id', '=', company_id.id)
         ], limit=1)
 
