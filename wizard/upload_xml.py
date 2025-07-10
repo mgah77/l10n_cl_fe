@@ -1080,6 +1080,61 @@ class UploadXMLWizard(models.TransientModel):
                 #     inv.amount_total,
                 #     monto_xml))
 
+                # === Leer totales desde el XML ===
+                    encabezado = documento.find("Encabezado")
+                    totales = encabezado.find("Totales")
+
+                    mnt_total = int(totales.find("MntTotal").text or 0)
+                    mnt_neto = int(totales.find("MntNeto").text or 0) if totales.find("MntNeto") is not None else 0
+                    mnt_exe = int(totales.find("MntExe").text or 0) if totales.find("MntExe") is not None else 0
+                    iva = int(totales.find("IVA").text or 0) if totales.find("IVA") is not None else 0
+
+                    # === Signo solo para NC recibidas ===
+                    signo = -1 if inv.move_type == 'in_refund' else 1
+
+                    # === Valores firmados ===
+                    total_signed = mnt_total * signo
+                    untaxed_signed = (mnt_neto + mnt_exe) * signo
+                    tax_signed = iva * signo
+                    residual = mnt_total
+                    residual_signed = total_signed
+
+                    # === Moneda extranjera firmada ===
+                    currency_total_signed = total_signed
+                    if inv.currency_id != inv.company_id.currency_id:
+                        currency_total_signed = inv.currency_id._convert(
+                            mnt_total,
+                            inv.currency_id,
+                            inv.company_id,
+                            inv.date or fields.Date.context_today(self)
+                        ) * signo
+
+                    # === SQL directo para sobrescribir totales ===
+                    self.env.cr.execute("""
+                        UPDATE account_move
+                        SET amount_untaxed = %s,
+                            amount_tax = %s,
+                            amount_total = %s,
+                            amount_untaxed_signed = %s,
+                            amount_tax_signed = %s,
+                            amount_total_signed = %s,
+                            amount_total_in_currency_signed = %s,
+                            amount_residual = %s,
+                            amount_residual_signed = %s
+                        WHERE id = %s
+                    """, (
+                        mnt_neto + mnt_exe,     # amount_untaxed
+                        iva,                    # amount_tax
+                        mnt_total,              # amount_total
+                        untaxed_signed,
+                        tax_signed,
+                        total_signed,
+                        currency_total_signed,
+                        residual,
+                        residual_signed,
+                        inv.id
+                    ))
+
             except Exception as e:
                 msg = "Error en crear 1 factura con error:  %s" % str(e)
                 _logger.warning(msg, exc_info=True)
