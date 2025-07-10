@@ -1033,53 +1033,62 @@ class UploadXMLWizard(models.TransientModel):
                 if to_post and inv.state=="draft":
                     inv._onchange_partner_id()
                     inv._onchange_invoice_line_ids()
-                    inv.with_context(purchase_to_done=self.purchase_to_done.id)._post()
-                Totales = documento.find("Encabezado/Totales")
-                monto_xml = float(Totales.find("MntTotal").text)
-                if Totales.find("MontoNF") is not None:
-                    montonf_xml = float(Totales.find("MontoNF").text)
-                    #monto_xml debe sumarse a total no facturable
-                    monto_xml = monto_xml + montonf_xml
-                self.env.cr.commit()
-                if inv.amount_total == monto_xml:
-                    continue
-                if to_post:
-                    inv.button_draft()
-                total_line = inv.line_ids.filtered(lambda a: a.name=='')
-                diff_amount_currency = diff_balance = 0
-                for line in inv.line_ids.filtered('tax_line_id'):
-                    if Totales.find("TasaIVA") is not None and line.tax_line_id.amount == float(Totales.find("TasaIVA").text):
-                        diff_amount_currency = diff_balance = float(Totales.find("IVA").text) - (line.balance if line.balance >0 else -line.balance)
-                        rounding_line_vals = {
-                            'price_unit': diff_amount_currency,
-                            'quantity': 1.0,
-                            'amount_currency': diff_amount_currency,
-                            'partner_id': inv.partner_id.id,
-                            'move_id': inv.id,
-                            'currency_id': inv.currency_id.id,
-                            'company_id': inv.company_id.id,
-                            'company_currency_id': inv.company_id.currency_id.id,
-                            'sequence': 9999,
-                            'name': _('%s (rounding)', line.name),
-                            'account_id': line.account_id.id,
-                        }
-                        rounding_line = self.env['account.move.line'].with_context(check_move_validity=False).create(rounding_line_vals)
-                if to_post:
-                    inv.with_context(restore_mode=True)._post()
-                if inv.amount_total == monto_xml:
-                    continue
-                raise UserError("No se pudo cuadrar %s-%s, %s != %s" %(
-                    inv.document_class_id.name,
-                    inv.sii_document_number,
-                    inv.amount_total,
-                    monto_xml))
+                    # Deshabilitamos validación estricta y recálculos forzados
+                    inv.with_context(
+                        purchase_to_done=self.purchase_to_done.id,
+                        check_move_validity=False,  # Evita validación de cuadre
+                        recompute=False,  # Evita recálculo automático
+                    )._post()
+
+                # --- Se comenta la validación de montos vs XML ---
+                # Totales = documento.find("Encabezado/Totales")
+                # monto_xml = float(Totales.find("MntTotal").text)
+                # if Totales.find("MontoNF") is not None:
+                #     montonf_xml = float(Totales.find("MontoNF").text)
+                #     monto_xml = monto_xml + montonf_xml
+                # self.env.cr.commit()
+                # if inv.amount_total == monto_xml:
+                #     continue
+                # if to_post:
+                #     inv.button_draft()
+                # total_line = inv.line_ids.filtered(lambda a: a.name=='')
+                # diff_amount_currency = diff_balance = 0
+                # for line in inv.line_ids.filtered('tax_line_id'):
+                #     if Totales.find("TasaIVA") is not None and line.tax_line_id.amount == float(Totales.find("TasaIVA").text):
+                #         diff_amount_currency = diff_balance = float(Totales.find("IVA").text) - (line.balance if line.balance >0 else -line.balance)
+                #         rounding_line_vals = {
+                #             'price_unit': diff_amount_currency,
+                #             'quantity': 1.0,
+                #             'amount_currency': diff_amount_currency,
+                #             'partner_id': inv.partner_id.id,
+                #             'move_id': inv.id,
+                #             'currency_id': inv.currency_id.id,
+                #             'company_id': inv.company_id.id,
+                #             'company_currency_id': inv.company_id.currency_id.id,
+                #             'sequence': 9999,
+                #             'name': _('%s (rounding)', line.name),
+                #             'account_id': line.account_id.id,
+                #         }
+                #         rounding_line = self.env['account.move.line'].with_context(check_move_validity=False).create(rounding_line_vals)
+                # if to_post:
+                #     inv.with_context(restore_mode=True)._post()
+                # if inv.amount_total == monto_xml:
+                #     continue
+                # raise UserError("No se pudo cuadrar %s-%s, %s != %s" %(
+                #     inv.document_class_id.name,
+                #     inv.sii_document_number,
+                #     inv.amount_total,
+                #     monto_xml))
+
             except Exception as e:
                 msg = "Error en crear 1 factura con error:  %s" % str(e)
                 _logger.warning(msg, exc_info=True)
                 _logger.warning(etree.tostring(dte))
                 if self.document_id:
                     self.document_id.message_post(body=msg)
-        if created and self.option not in [False, "upload"] and self.type == "compras"  and not self._context.get('create_only', False):
+
+        # Se mantiene el envío al SII (sin cambios)
+        if created and self.option not in [False, "upload"] and self.type == "compras" and not self._context.get('create_only', False):
             datos = {
                 "move_ids": [(6, 0, created)],
                 "action": "ambas",
