@@ -1550,10 +1550,10 @@ class AccountMove(models.Model):
         Totales["MntTotal"] = currency_id.round(MntTotal)
         if totales['MontoNF']:
             Totales['MontoNF'] = currency_id.round(totales['MontoNF'])
-            if Totales.get('TotalPeriodo'):
-                Totales['TotalPeriodo'] = Totales['TotalPeriodo']
-            else:
-                Totales['MontoPeriodo'] = Totales['MontoPeriodo']
+            #if Totales.get('TotalPeriodo'):
+            #    Totales['TotalPeriodo'] = Totales['TotalPeriodo']
+            #else:
+            #    Totales['MontoPeriodo'] = Totales['MontoPeriodo']
         # Totales['SaldoAnterior']
         VlrPagar = totales.get('VlrPagar', 0)
         if currency_id != self.currency_id:
