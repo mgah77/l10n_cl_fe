@@ -382,7 +382,7 @@
                                     </t>
                                     <tr name="subtotal" t-if="not price_included">
                                         <td>
-                                            <strong>Subtotal</strong>
+                                            Neto
                                         </td>
                                         <td class="text-end">
                                             <span t-field="o.amount_untaxed" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
@@ -420,7 +420,8 @@
                                         <t t-if="has_rounding"><td>Total</td></t>
                                         <t t-else=""><td><strong>Total</strong></td></t>
                                         <td class="text-end">
-                                            <span t-esc="tax_totals['formatted_amount_total']"/>
+                                            <!--span t-esc="tax_totals['formatted_amount_total']"/-->
+                                            <span t-field="o.amount_total" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                                         </td>
                                     </tr>
                                     <tr t-if="has_rounding">
