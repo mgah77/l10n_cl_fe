@@ -408,9 +408,11 @@
                                       <t t-set="subtotal_to_show" t-value="subtotal['name']"/>
                                       <t t-foreach="tax_totals['groups_by_subtotal'][subtotal_to_show]" t-as="amount_by_group">
                                           <tr>
-                                              <td><span class="text-nowrap" t-esc="amount_by_group['tax_group_name']"/></td>
+                                              <!--td><span class="text-nowrap" t-esc="amount_by_group['tax_group_name']"/></td-->
+                                              <td>IVA</td>
                                               <td class="text-end o_price_total">
-                                                  <span class="text-nowrap" t-esc="amount_by_group['formatted_tax_group_amount']"/>
+                                                  <!--span class="text-nowrap" t-esc="amount_by_group['formatted_tax_group_amount']"/-->
+                                                  <span t-field="o.amount_tax" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                                               </td>
                                           </tr>
                                       </t>
