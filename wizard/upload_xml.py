@@ -1090,7 +1090,7 @@ class UploadXMLWizard(models.TransientModel):
                     iva = int(totales.find("IVA").text or 0) if totales.find("IVA") is not None else 0
 
                     # === Signo solo para NC recibidas ===
-                    signo = -1 if inv.move_type == 'in_refund' else 1
+                    signo = -1 if inv.move_type == 'in_invoice' else 1
 
                     # === Valores firmados ===
                     total_signed = mnt_total * signo
