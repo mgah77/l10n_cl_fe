@@ -1084,7 +1084,12 @@ class UploadXMLWizard(models.TransientModel):
                     encabezado = documento.find("Encabezado")
                     totales = encabezado.find("Totales")
 
-                    mnt_total = int(totales.find("MntTotal").text or 0)
+                    vlr_pagar = totales.find("VlrPagar")
+                    if vlr_pagar is not None and vlr_pagar.text:
+                        mnt_total = int(vlr_pagar.text or 0)
+                    else:
+                        mnt_total = int(totales.find("MntTotal").text or 0)
+
                     mnt_neto = int(totales.find("MntNeto").text or 0) if totales.find("MntNeto") is not None else 0
                     mnt_exe = int(totales.find("MntExe").text or 0) if totales.find("MntExe") is not None else 0
                     iva = int(totales.find("IVA").text or 0) if totales.find("IVA") is not None else 0
