@@ -475,7 +475,7 @@ class UploadXMLWizard(models.TransientModel):
                 [
                     ("sequence", "=", line.find("NroLinDet").text),
                     ("document_id", "=", self.document_id.id),
-                ]
+                ],limit=1
             )
             if not self.crear_po and not line_id.create_move_line:
                 create_line = False
