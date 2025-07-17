@@ -475,7 +475,7 @@ class UploadXMLWizard(models.TransientModel):
                 [
                     ("sequence", "=", line.find("NroLinDet").text),
                     ("document_id", "=", self.document_id.id),
-                ]
+                ],limit=1
             )
             if not self.crear_po and not line_id.create_move_line:
                 create_line = False
@@ -535,13 +535,14 @@ class UploadXMLWizard(models.TransientModel):
             refund=refund
         )
         if line.find("CodImpAdic") is not None:
-            amount = 19
-            tax_ids += self._buscar_impuesto(
-                type="purchase" if self.type == "compras" else "sale",
-                amount=amount, sii_code=line.find("CodImpAdic").text,
-                company_id=company_id,
-                refund=refund
-            )
+            #amount = 19
+            #tax_ids += self._buscar_impuesto(
+            #    type="purchase" if self.type == "compras" else "sale",
+            #    amount=amount, sii_code=line.find("CodImpAdic").text,
+            #    company_id=company_id,
+            #    refund=refund
+            #)
+            pass
         if IndExe is None:
             tax_include = False
             for t in tax_ids:
@@ -834,41 +835,37 @@ class UploadXMLWizard(models.TransientModel):
         )
         if not self.crear_po and Encabezado.find("Totales/ImptoReten") is not None:
             ImptoReten = Encabezado.findall("Totales/ImptoReten")
-            refund = self.env["sii.document_class"].browse(
-                data['document_class_id']).es_nc()
+            refund = self.env["sii.document_class"].browse(data['document_class_id']).es_nc()
+
             for i in ImptoReten:
-                tax_amount = 0
-                if i.find("TasaImp") is not None:
-                    tax_amount = float(i.find("TasaImp").text)
-                imp = self._buscar_impuesto(
-                    type="purchase" if self.type == "compras" else "sale",
-                    name="OtrosImps_" + i.find("TipoImp").text,
-                    amount=tax_amount,
-                    sii_code=i.find("TipoImp").text,
-                    company_id=company_id,
-                    refund=refund)
-                price = float(i.find("MontoImp").text)
-                price_subtotal = float(i.find("MontoImp").text)
-                if price_included:
-                    price = imp.compute_all(price, company_id.currency_id, 1)["total_excluded"]
-                    price_subtotal = imp.compute_all(price_subtotal, company_id.currency_id, 1)[
-                        "total_excluded"
-                    ]
-                lines.append(
-                    [
-                        0,
-                        0,
-                        {
-                            "tax_ids": [(6, 0, imp.ids)],
-                            "product_id": product_id,
-                            "name": "MontoImpuesto %s" % i.find("TipoImp").text,
-                            "price_unit": price,
-                            "quantity": 1,
-                            "price_subtotal": price_subtotal,
-                            # 'account_id':
-                        },
-                    ]
-                )
+                monto_imp = float(i.find("MontoImp").text)
+
+                # Buscar o crear producto específico
+                product_id = self.env["product.product"].search([
+                    ("name", "=", "Impuesto específico al diesel")
+                ], limit=1)
+
+                if not product_id:
+                    product_id = self.env["product.product"].create({
+                        "name": "Impuesto específico al diesel",
+                        "sale_ok": False,
+                        "purchase_ok": True,
+                        "type": "service",
+                        "lst_price": monto_imp,
+                        "categ_id": self._default_category(),
+                    })
+
+                lines.append([
+                    0, 0, {
+                        "product_id": product_id.id,
+                        "name": "Impuesto específico al diesel",
+                        "price_unit": monto_imp,
+                        "quantity": 1,
+                        "price_subtotal": monto_imp,
+                        "tax_ids": [(6, 0, [])],  # sin impuestos
+                    }
+                ])
+
         # if 'IVATerc' in dte['Encabezado']['Totales']:
         #    imp = self._buscar_impuesto(name="IVATerc" )
         #    lines.append([0,0,{
