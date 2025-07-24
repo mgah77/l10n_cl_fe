@@ -1,5 +1,6 @@
 import base64
 import logging
+from datetime import timedelta
 
 from facturacion_electronica import facturacion_electronica as fe
 from lxml import etree
@@ -709,7 +710,6 @@ class UploadXMLWizard(models.TransientModel):
         if documento.find("TED") is not None:
             ted_string = etree.tostring(documento.find("TED"), method="c14n", pretty_print=False)
         FchEmis = IdDoc.find("FchEmis").text
-        FchVenc = IdDoc.find("FchVenc").text
         data.update(
             {
                 "partner_id": partner_id,
@@ -726,7 +726,6 @@ class UploadXMLWizard(models.TransientModel):
                 "invoice_origin": "XML Envío: " + name.decode(),
                 "sii_barcode": ted_string.decode(),
                 "invoice_date": FchEmis,
-                "invoice_date_due": FchVenc,
                 "use_documents": self.type=='ventas',
             })
         if journal_id:
@@ -1138,6 +1137,22 @@ class UploadXMLWizard(models.TransientModel):
                         residual_signed,
                         inv.id
                     ))
+
+                    # === Fecha de vencimiento: FchVenc o FchEmis + 30 ===
+                    fch_emis = encabezado.find("IdDoc/FchEmis").text
+                    fch_venc_node = encabezado.find("IdDoc/FchVenc")
+                    if fch_venc_node is not None and fch_venc_node.text:
+                        fecha_vencimiento = fch_venc_node.text
+                    else:
+                        fecha_emision = fields.Date.from_string(fch_emis)
+                        fecha_vencimiento = fields.Date.to_string(fecha_emision + timedelta(days=30))
+
+                    # === SQL para sobrescribir la fecha de vencimiento ===
+                    self.env.cr.execute("""
+                        UPDATE account_move
+                        SET invoice_date_due = %s
+                        WHERE id = %s
+                    """, (fecha_vencimiento, inv.id))
 
             except Exception as e:
                 msg = "Error en crear 1 factura con error:  %s" % str(e)
