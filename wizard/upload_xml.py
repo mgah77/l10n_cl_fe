@@ -709,6 +709,7 @@ class UploadXMLWizard(models.TransientModel):
         if documento.find("TED") is not None:
             ted_string = etree.tostring(documento.find("TED"), method="c14n", pretty_print=False)
         FchEmis = IdDoc.find("FchEmis").text
+        FchVenc = IdDoc.find("FchVenc").text
         data.update(
             {
                 "partner_id": partner_id,
@@ -725,6 +726,7 @@ class UploadXMLWizard(models.TransientModel):
                 "invoice_origin": "XML Envío: " + name.decode(),
                 "sii_barcode": ted_string.decode(),
                 "invoice_date": FchEmis,
+                "invoice_date_due": FchVenc,
                 "use_documents": self.type=='ventas',
             })
         if journal_id:
