@@ -117,7 +117,8 @@ class UploadXMLWizard(models.TransientModel):
             self._get_xml()
             .replace('<?xml version="1.0" encoding="ISO-8859-1"?>', "")
             .replace('<?xml version="1.0" encoding="ISO-8859-1" ?>', "")
-            .replace('<?xml version="1.0" encoding="ISO-8859-1" standalone="no"?>', "")       
+            .replace('<?xml version="1.0" encoding="ISO-8859-1" standalone="no"?>', "")     
+            .replace('<DscItem />', "")#cuando viene sin descripcion en este formato, linea causa error
         )
         if check:
             return xml
