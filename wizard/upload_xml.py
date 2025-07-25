@@ -1155,6 +1155,19 @@ class UploadXMLWizard(models.TransientModel):
                         WHERE id = %s
                     """, (fecha_vencimiento, inv.id))
 
+                    # === Forzar price_subtotal desde líneas ===
+                    data = self._get_data(documento, company_id)
+                    lines = data.get("invoice_line_ids", [])
+                    for i, line in enumerate(inv.invoice_line_ids.filtered(lambda l: not l.display_type and not l.tax_line_id)):
+                        if i < len(lines):
+                            subtotal = lines[i][2].get("price_subtotal")
+                            if subtotal is not None:
+                                self.env.cr.execute("""
+                                    UPDATE account_move_line
+                                    SET price_subtotal = %s
+                                    WHERE id = %s
+                                """, (subtotal, line.id))
+
             except Exception as e:
                 msg = "Error en crear 1 factura con error:  %s" % str(e)
                 _logger.warning(msg, exc_info=True)
