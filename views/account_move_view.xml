@@ -134,13 +134,11 @@
                 </field>
                 <label for="journal_id" position="before">
                   <label for="forma_pago"
-                         groups="account.group_account_readonly"
                          attrs="{'invisible': [('move_type', 'not in', ('out_invoice', 'out_refund', 'in_invoice', 'in_refund'))]}"/>
                   <div name="forma_pago_div" class="d-flex" attrs="{'invisible': [('move_type', 'not in', ('out_invoice', 'out_refund', 'in_invoice', 'in_refund'))]}">
                     <field name="forma_pago" />
                   </div>
                   <label for="contact_id"
-                         groups="account.group_account_readonly"
                          attrs="{'invisible': [('move_type', 'not in', ('out_invoice', 'out_refund', 'in_invoice', 'in_refund'))]}"/>
                   <div name="contact_id_div" class="d-flex" attrs="{'invisible': [('move_type', 'not in', ('out_invoice', 'out_refund', 'in_invoice', 'in_refund'))]}">
                     <field name="contact_id" domain="[('parent_id','=',partner_id)]" />
