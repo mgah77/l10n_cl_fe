@@ -63,6 +63,8 @@ class Referencias(models.Model):
 class AccountMove(models.Model):
     _inherit = "account.move"
 
+    invoice_date = fields.Date(default=fields.Date.context_today)
+
     def get_barcode_img(self, columns=13, ratio=3, xml=False):
         barcodefile = BytesIO()
         if not xml:
