@@ -1164,10 +1164,9 @@ class UploadXMLWizard(models.TransientModel):
                             if subtotal is not None:
                                 self.env.cr.execute("""
                                     UPDATE account_move_line
-                                    SET price_subtotal = %s,
-                                        price_total = %s
+                                    SET price_subtotal = %s 
                                     WHERE id = %s
-                                """, (subtotal, subtotal, line.id))
+                                """, (subtotal, line.id))
 
             except Exception as e:
                 msg = "Error en crear 1 factura con error:  %s" % str(e)
