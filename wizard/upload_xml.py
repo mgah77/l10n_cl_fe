@@ -1042,7 +1042,7 @@ class UploadXMLWizard(models.TransientModel):
                             "quantity": 1,
                             "price_unit": diferencia,
                             "price_subtotal": diferencia,
-                            "account_id": lines_dicts[0].get("account_id"),
+                            "account_id": 97,
                         }
                     ))
                     data["invoice_line_ids"] = lines
