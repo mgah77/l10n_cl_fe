@@ -1035,7 +1035,7 @@ class UploadXMLWizard(models.TransientModel):
                 neto_total = mnt_neto + mnt_exe
                 diferencia = neto_total - subtotal_suma
 
-                if abs(diferencia) >= 1 and lines_dicts:
+                if abs(diferencia) >= 1:
                     lines.append((
                         0, 0, {
                             "name": "rounding",
@@ -1109,8 +1109,6 @@ class UploadXMLWizard(models.TransientModel):
                 #     monto_xml))
 
                 # === Leer totales desde el XML ===
-                    encabezado = documento.find("Encabezado")
-                    totales = encabezado.find("Totales")
 
                     vlr_pagar = totales.find("VlrPagar")
                     if vlr_pagar is not None and vlr_pagar.text:
@@ -1118,8 +1116,6 @@ class UploadXMLWizard(models.TransientModel):
                     else:
                         mnt_total = int(totales.find("MntTotal").text or 0)
 
-                    mnt_neto = int(totales.find("MntNeto").text or 0) if totales.find("MntNeto") is not None else 0
-                    mnt_exe = int(totales.find("MntExe").text or 0) if totales.find("MntExe") is not None else 0
                     iva = int(totales.find("IVA").text or 0) if totales.find("IVA") is not None else 0
 
                     # === Signo solo para NC recibidas ===
@@ -1156,7 +1152,7 @@ class UploadXMLWizard(models.TransientModel):
                             amount_residual_signed = %s
                         WHERE id = %s
                     """, (
-                        mnt_neto + mnt_exe,     # amount_untaxed
+                        neto_total,             # amount_untaxed
                         iva,                    # amount_tax
                         mnt_total,              # amount_total
                         untaxed_signed,
@@ -1184,30 +1180,8 @@ class UploadXMLWizard(models.TransientModel):
                         WHERE id = %s
                     """, (fecha_vencimiento, inv.id))
 
-
-                    # === Forzar price_subtotal desde líneas y ajustar diferencia ===
-                    data = self._get_data(documento, company_id)
-                    lines = data.get("invoice_line_ids", [])
-                    lines_dict = [l[2] for l in lines if isinstance(l, list)]
-
-                    subtotal_suma = sum(l.get("price_subtotal", 0.0) for l in lines_dict)
-                    neto_db = mnt_neto + mnt_exe
-                    diferencia = int(round(neto_db - subtotal_suma))
-
-                    if abs(diferencia) >= inv.currency_id.rounding:
-                        cuenta = inv.line_ids.filtered(lambda l: l.account_id and not l.display_type and not l.tax_line_id)[0].account_id
-                        self.env['account.move.line'].create({
-                            'move_id': inv.id,
-                            'name': 'rounding',
-                            'quantity': 1,
-                            'price_unit': diferencia,
-                            'price_subtotal': diferencia,
-                            'account_id': cuenta.id,
-                        })
-
                     # === Forzar price_subtotal desde líneas ===
-                    data = self._get_data(documento, company_id)
-                    lines = data.get("invoice_line_ids", [])
+
                     for i, line in enumerate(inv.invoice_line_ids.filtered(lambda l: not l.display_type and not l.tax_line_id)):
                         if i < len(lines):
                             subtotal = lines[i][2].get("price_subtotal")
