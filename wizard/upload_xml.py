@@ -1020,6 +1020,35 @@ class UploadXMLWizard(models.TransientModel):
                 )
                 if not company_id:
                     raise UserError(_(f"No existe compañia para el rut {rut}"))
+                
+                           # === Obtener líneas y agregar rounding si corresponde ===
+                data = self._get_data(documento, company_id)
+                lines = data.get("invoice_line_ids", [])
+                lines_dicts = [l[2] for l in lines if isinstance(l, list)]
+
+                subtotal_suma = sum(l.get("price_subtotal", 0.0) for l in lines_dicts)
+
+                encabezado = documento.find("Encabezado")
+                totales = encabezado.find("Totales")
+                mnt_neto = int(totales.find("MntNeto").text or 0) if totales.find("MntNeto") is not None else 0
+                mnt_exe = int(totales.find("MntExe").text or 0) if totales.find("MntExe") is not None else 0
+                neto_total = mnt_neto + mnt_exe
+                diferencia = neto_total - subtotal_suma
+
+                if abs(diferencia) >= 1 and lines_dicts:
+                    lines.append((
+                        0, 0, {
+                            "name": "rounding",
+                            "quantity": 1,
+                            "price_unit": diferencia,
+                            "price_subtotal": diferencia,
+                            "account_id": lines_dicts[0].get("account_id"),
+                        }
+                    ))
+                    data["invoice_line_ids"] = lines
+
+                # === Crear factura ===
+
                 inv = self._create_inv(documento, company_id,)
                 if self.document_id:
                     self.document_id.move_id = inv.id
