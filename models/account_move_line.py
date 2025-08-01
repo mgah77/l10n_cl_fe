@@ -69,10 +69,14 @@ class AccountInvoiceLine(models.Model):
                     discount=line.discount,
                     uom_id=line.product_uom_id
                 )
-                line.price_subtotal = taxes_res['total_excluded']
                 line.price_total = taxes_res['total_included']
+                # No recalcular price_subtotal si es factura proveedor
+                if line.move_id.move_type not in ('in_invoice', 'in_refund'):
+                    line.price_subtotal = taxes_res['total_excluded']
             else:
-                line.price_total = line.price_subtotal = subtotal
+                line.price_total = subtotal
+                if line.move_id.move_type not in ('in_invoice', 'in_refund'):
+                    line.price_subtotal = subtotal
 
     @api.depends('tax_ids', 'currency_id', 'partner_id', 'analytic_distribution', 'balance', 'partner_id', 'move_id.partner_id', 'price_unit')
     def _compute_all_tax(self):
