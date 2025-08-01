@@ -43,6 +43,9 @@ class AccountInvoiceLine(models.Model):
     @api.depends('quantity', 'discount', 'price_unit', 'tax_ids', 'currency_id')
     def _compute_totals(self):
         for line in self:
+            # Solo omitir cálculo si es factura proveedor
+            if line.move_id.move_type in ('in_invoice', 'in_refund'):
+                continue
             if line.display_type != 'product':
                 line.price_total = line.price_subtotal = False
             # Compute 'price_subtotal'.
