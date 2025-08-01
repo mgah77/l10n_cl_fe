@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from facturacion_electronica import facturacion_electronica as fe
 from lxml import etree
-
+from odoo.tools.float_utils import float_round
 from odoo import api, fields, models, tools
 from odoo.exceptions import UserError
 from odoo.tools.translate import _
@@ -1154,6 +1154,27 @@ class UploadXMLWizard(models.TransientModel):
                         SET invoice_date_due = %s
                         WHERE id = %s
                     """, (fecha_vencimiento, inv.id))
+
+
+                    # === Forzar price_subtotal desde líneas y ajustar diferencia ===
+                    data = self._get_data(documento, company_id)
+                    lines = data.get("invoice_line_ids", [])
+                    lines_dict = [l[2] for l in lines if isinstance(l, list)]
+
+                    subtotal_suma = sum(l.get("price_subtotal", 0.0) for l in lines_dict)
+                    neto_db = mnt_neto + mnt_exe
+                    diferencia = int(round(neto_db - subtotal_suma))
+
+                    if abs(diferencia) >= inv.currency_id.rounding:
+                        cuenta = inv.line_ids.filtered(lambda l: l.account_id and not l.display_type and not l.tax_line_id)[0].account_id
+                        self.env['account.move.line'].create({
+                            'move_id': inv.id,
+                            'name': 'rounding',
+                            'quantity': 1,
+                            'price_unit': diferencia,
+                            'price_subtotal': diferencia,
+                            'account_id': cuenta.id,
+                        })
 
                     # === Forzar price_subtotal desde líneas ===
                     data = self._get_data(documento, company_id)
