@@ -867,6 +867,41 @@ class UploadXMLWizard(models.TransientModel):
                         "tax_ids": [(6, 0, [])],  # sin impuestos
                     }
                 ])
+                # === Agregar línea rounding si hay diferencia con el neto declarado ===
+        if not self.crear_po:
+            line_dicts = [l[2] for l in lines if isinstance(l, list)]
+            subtotal_sum = sum(l.get("price_subtotal", 0.0) for l in line_dicts)
+
+            mnt_neto = int(Encabezado.find("Totales/MntNeto").text or 0) if Encabezado.find("Totales/MntNeto") is not None else 0
+            mnt_exe = int(Encabezado.find("Totales/MntExe").text or 0) if Encabezado.find("Totales/MntExe") is not None else 0
+            neto_total = mnt_neto + mnt_exe
+            diferencia = neto_total - subtotal_sum
+
+            if abs(diferencia) >= 1:
+                producto_rounding = self.env["product.product"].search([
+                    ("name", "=", "Rounding")
+                ], limit=1)
+
+                if not producto_rounding:
+                    producto_rounding = self.env["product.product"].create({
+                        "name": "Rounding",
+                        "sale_ok": False,
+                        "purchase_ok": True,
+                        "type": "service",
+                        "lst_price": diferencia,
+                        "categ_id": self._default_category(),
+                    })
+
+                lines.append([
+                    0, 0, {
+                        "product_id": producto_rounding.id,
+                        "name": "Rounding",
+                        "price_unit": diferencia,
+                        "quantity": 1,
+                        "price_subtotal": diferencia,
+                        "tax_ids": [(6, 0, [])],
+                    }
+                ])
 
         # if 'IVATerc' in dte['Encabezado']['Totales']:
         #    imp = self._buscar_impuesto(name="IVATerc" )
@@ -1023,31 +1058,6 @@ class UploadXMLWizard(models.TransientModel):
                 
                            # === Obtener líneas y agregar rounding si corresponde ===
                 data = self._get_data(documento, company_id)
-                lines = data.get("invoice_line_ids", [])
-                lines_dicts = [l[2] for l in lines if isinstance(l, list)]
-
-                subtotal_suma = sum(l.get("price_subtotal", 0.0) for l in lines_dicts)
-
-                encabezado = documento.find("Encabezado")
-                totales = encabezado.find("Totales")
-                mnt_neto = int(totales.find("MntNeto").text or 0) if totales.find("MntNeto") is not None else 0
-                mnt_exe = int(totales.find("MntExe").text or 0) if totales.find("MntExe") is not None else 0
-                neto_total = mnt_neto + mnt_exe
-                diferencia = neto_total - subtotal_suma
-
-                if abs(diferencia) >= 1:
-                    lines.append((
-                        0, 0, {
-                            "name": "rounding",
-                            "quantity": 1,
-                            "price_unit": diferencia,
-                            "price_subtotal": diferencia,
-                            "account_id": 97,
-                            "product_uom_id": 1,
-                            "tax_ids": [(6, 0, [])], 
-                        }
-                    ))
-                    data["invoice_line_ids"] = lines
 
                 # === Crear factura ===
 
@@ -1111,14 +1121,18 @@ class UploadXMLWizard(models.TransientModel):
                 #     monto_xml))
 
                 # === Leer totales desde el XML ===
-
+                    encabezado = documento.find("Encabezado")
+                    totales = encabezado.find("Totales")
                     vlr_pagar = totales.find("VlrPagar")
                     if vlr_pagar is not None and vlr_pagar.text:
                         mnt_total = int(vlr_pagar.text or 0)
                     else:
                         mnt_total = int(totales.find("MntTotal").text or 0)
 
+                    mnt_neto = int(totales.find("MntNeto").text or 0) if totales.find("MntNeto") is not None else 0
+                    mnt_exe = int(totales.find("MntExe").text or 0) if totales.find("MntExe") is not None else 0              
                     iva = int(totales.find("IVA").text or 0) if totales.find("IVA") is not None else 0
+                    neto_total = mnt_neto + mnt_exe
 
                     # === Signo solo para NC recibidas ===
                     signo = -1 if inv.move_type == 'in_invoice' else 1
@@ -1183,7 +1197,7 @@ class UploadXMLWizard(models.TransientModel):
                     """, (fecha_vencimiento, inv.id))
 
                     # === Forzar price_subtotal desde líneas ===
-
+                    lines = data.get("invoice_line_ids", [])
                     for i, line in enumerate(inv.invoice_line_ids.filtered(lambda l: not l.display_type and not l.tax_line_id)):
                         if i < len(lines):
                             subtotal = lines[i][2].get("price_subtotal")
