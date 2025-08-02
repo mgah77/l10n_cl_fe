@@ -899,6 +899,8 @@ class UploadXMLWizard(models.TransientModel):
                         "price_unit": diferencia,
                         "quantity": 1,
                         "price_subtotal": diferencia,
+                        "product_uom_id": producto_rounding.uom_id.id,
+                        "account_id": 97,
                         "tax_ids": [(6, 0, [])],
                     }
                 ])
