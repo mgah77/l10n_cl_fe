@@ -1043,6 +1043,8 @@ class UploadXMLWizard(models.TransientModel):
                             "price_unit": diferencia,
                             "price_subtotal": diferencia,
                             "account_id": 97,
+                            "product_uom_id": 1,
+                            "tax_ids": [(6, 0, [])], 
                         }
                     ))
                     data["invoice_line_ids"] = lines
