@@ -869,16 +869,32 @@ class UploadXMLWizard(models.TransientModel):
                 ])
                 # === Agregar línea rounding si hay diferencia con el neto declarado ===
         if not self.crear_po:
-            # Calcular suma de subtotales de las líneas
             line_dicts = [l[2] for l in lines if isinstance(l, list) and len(l) > 2]
-            subtotal_sum = sum(l.get("price_subtotal", 0) for l in line_dicts)
+            
+            # Filtrar líneas afectas (no exentas)
+            lineas_afectas = [l for l in line_dicts if not l.get('ind_exe', False)]
+            subtotal_afecto = sum(l.get('price_subtotal', 0.0) for l in lineas_afectas)
+            
+            # Calcular IVA (19% del subtotal afecto)
+            iva_calculado = subtotal_afecto * 0.19
+            
+            # Sumar líneas exentas
+            subtotal_exento = sum(
+                l.get('price_subtotal', 0.0) 
+                for l in line_dicts 
+                if l.get('ind_exe', False)
+            )
+            
+            # Total calculado
+            total_calculado = subtotal_afecto + iva_calculado + subtotal_exento
+            
+            # Total del XML
+            mnt_total_xml = int(Encabezado.find("Totales/MntTotal").text or 0)
+            
+            # Diferencia
+            diferencia = mnt_total_xml - total_calculado
 
-            mnt_neto = int(Encabezado.find("Totales/MntNeto").text or 0) if Encabezado.find("Totales/MntNeto") is not None else 0
-            mnt_exe = int(Encabezado.find("Totales/MntExe").text or 0) if Encabezado.find("Totales/MntExe") is not None else 0
-            neto_total = mnt_neto + mnt_exe
-            diferencia = neto_total - subtotal_sum
-
-            if abs(diferencia) >= 1:  # Solo crear línea si la diferencia es significativa
+            if abs(diferencia) >= 1:  # Solo si diferencia es significativa
                 producto_rounding = self.env["product.product"].search([
                     ("name", "=", "Rounding")
                 ], limit=1)
@@ -896,12 +912,13 @@ class UploadXMLWizard(models.TransientModel):
                 # Crear línea rounding
                 rounding_line = {
                     "product_id": producto_rounding.id,
-                    "name": "Rounding",
+                    "name": "Ajuste por redondeo",
                     "price_unit": diferencia,
                     "quantity": 1,
                     "price_subtotal": diferencia,
-                    "tax_ids": [(6, 0, [])],
+                    "tax_ids": [(6, 0, [])],  # Sin impuestos
                     "product_uom_id": producto_rounding.uom_id.id,
+                    "ind_exe": False,  # No es exenta
                 }
                 
                 lines.append([0, 0, rounding_line])
