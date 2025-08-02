@@ -869,15 +869,16 @@ class UploadXMLWizard(models.TransientModel):
                 ])
                 # === Agregar línea rounding si hay diferencia con el neto declarado ===
         if not self.crear_po:
-            line_dicts = [l[2] for l in lines if isinstance(l, list)]
-            subtotal_sum = sum(l.get("price_subtotal", 0.0) for l in line_dicts)
+            # Calcular suma de subtotales de las líneas
+            line_dicts = [l[2] for l in lines if isinstance(l, list) and len(l) > 2]
+            subtotal_sum = sum(l.get("price_subtotal", 0) for l in line_dicts)
 
             mnt_neto = int(Encabezado.find("Totales/MntNeto").text or 0) if Encabezado.find("Totales/MntNeto") is not None else 0
             mnt_exe = int(Encabezado.find("Totales/MntExe").text or 0) if Encabezado.find("Totales/MntExe") is not None else 0
             neto_total = mnt_neto + mnt_exe
             diferencia = neto_total - subtotal_sum
 
-            if abs(diferencia) >= 1:
+            if abs(diferencia) >= 1:  # Solo crear línea si la diferencia es significativa
                 producto_rounding = self.env["product.product"].search([
                     ("name", "=", "Rounding")
                 ], limit=1)
@@ -892,18 +893,18 @@ class UploadXMLWizard(models.TransientModel):
                         "categ_id": self._default_category(),
                     })
 
-                lines.append([
-                    0, 0, {
-                        "product_id": producto_rounding.id,
-                        "name": "Rounding",
-                        "price_unit": diferencia,
-                        "quantity": 1,
-                        "price_subtotal": diferencia,
-                        "product_uom_id": producto_rounding.uom_id.id,
-                        "account_id": 97,
-                        "tax_ids": [(6, 0, [])],
-                    }
-                ])
+                # Crear línea rounding
+                rounding_line = {
+                    "product_id": producto_rounding.id,
+                    "name": "Rounding",
+                    "price_unit": diferencia,
+                    "quantity": 1,
+                    "price_subtotal": diferencia,
+                    "tax_ids": [(6, 0, [])],
+                    "product_uom_id": producto_rounding.uom_id.id,
+                }
+                
+                lines.append([0, 0, rounding_line])
 
         # if 'IVATerc' in dte['Encabezado']['Totales']:
         #    imp = self._buscar_impuesto(name="IVATerc" )
