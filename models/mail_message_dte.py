@@ -23,7 +23,7 @@ class ProccessMail(models.Model):
 
     def _parse_xml(self, xml_string):
         string_xml = b64decode(xml_string).decode("ISO-8859-1")
-        xml = string_xml.replace('<?xml version="1.0" encoding="ISO-8859-1"?>', "").replace('<?xml version="1.0" encoding="ISO-8859-1" ?>', "").replace('<?xml version="1.0" encoding="ISO-8859-1" standalone="no"?>', "")
+        xml = string_xml.replace('<?xml version="1.0" encoding="ISO-8859-1"?>', "").replace('<?xml version="1.0" encoding="ISO-8859-1" ?>', "").replace('<?xml version="1.0" encoding="ISO-8859-1" standalone="no"?>', "").replace('<DscItem />', "")
         xml = xml.replace(' xmlns="http://www.sii.cl/SiiDte"', "")
         parser = etree.XMLParser(remove_blank_text=True)
         return etree.fromstring(xml, parser=parser)
