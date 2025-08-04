@@ -107,7 +107,8 @@ class UploadXMLWizard(models.TransientModel):
         .replace('<ds:','<')\
         .replace('<ds:','<')\
         .replace('</ds:','</')\
-        .replace('standalone="no"', '')
+        .replace('<DscItem />','')\
+        .replace('<?xml version="1.0" encoding="ISO-8859-1" standalone="no"?>','')
 
     def _get_xml_name(self):
         return self.filename or self.dte_id.name
