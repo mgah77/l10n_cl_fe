@@ -1,4 +1,5 @@
 import logging
+import re
 from base64 import b64decode
 
 from lxml import etree
@@ -24,7 +25,7 @@ class ProcessMails(models.Model):
 
     def _parse_xml(self, string_xml):
         string_xml = b64decode(string_xml).decode("ISO-8859-1")
-        xml = string_xml.replace('<?xml version="1.0" encoding="ISO-8859-1"?>', "").replace('<?xml version="1.0" encoding="ISO-8859-1" ?>', "")
+        xml = re.sub(r'<\?xml\s+version="1\.0"\s+encoding="ISO-8859-1"(?:\s+standalone="[^"]*")?\s*\?>', '', string_xml)
         xml = xml.replace(' xmlns="http://www.sii.cl/SiiDte"', "")
         parser = etree.XMLParser(remove_blank_text=True)
         return etree.fromstring(xml, parser=parser)
