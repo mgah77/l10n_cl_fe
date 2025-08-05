@@ -1146,7 +1146,11 @@ class UploadXMLWizard(models.TransientModel):
                     totales = encabezado.find("Totales")
                     vlr_pagar = totales.find("VlrPagar")
                     if vlr_pagar is not None and vlr_pagar.text:
-                        mnt_total = int(vlr_pagar.text or 0)
+                        valor_vlrpagar = int(vlr_pagar.text or 0)
+                        if valor_vlrpagar != 0:
+                            mnt_total = valor_vlrpagar
+                        else:
+                            mnt_total = int(totales.find("MntTotal").text or 0)
                     else:
                         mnt_total = int(totales.find("MntTotal").text or 0)
 
