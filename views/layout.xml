@@ -319,10 +319,10 @@
                                         <span t-field="l.name"/>
                                     </td>
                                     <td class="table-cell-no-padding" style="text-align: right;">
-                                        <span t-esc="format(l.price_unit, '.0f')"/>
+                                        <span t-esc="'%.0f' % l.price_unit"/>
                                     </td>
                                     <td class="table-cell-no-padding" style="text-align: right;">
-                                        <span t-esc="format(l.quantity, '.0f')"/>
+                                        <span t-esc="'%.0f' % l.quantity"/>
                                         <!--span t-field="l.product_uom_id" groups="uom.group_uom"/-->
                                     </td>
                                     <td t-if="display_discount" class="table-cell-no-padding" groups="sale.group_discount_per_so_line">
