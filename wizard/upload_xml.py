@@ -1,6 +1,5 @@
 import base64
 import logging
-import re 
 from datetime import timedelta
 
 from facturacion_electronica import facturacion_electronica as fe
@@ -108,6 +107,7 @@ class UploadXMLWizard(models.TransientModel):
         .replace('<ds:','<')\
         .replace('<ds:','<')\
         .replace('</ds:','</')\
+        .replace('<DscItem />','')\
         .replace('<?xml version="1.0" encoding="ISO-8859-1" standalone="no"?>','')
 
     def _get_xml_name(self):
@@ -119,14 +119,12 @@ class UploadXMLWizard(models.TransientModel):
             .replace('<?xml version="1.0" encoding="ISO-8859-1"?>', "")
             .replace('<?xml version="1.0" encoding="ISO-8859-1" ?>', "")
             .replace('<?xml version="1.0" encoding="ISO-8859-1" standalone="no"?>', "")     
+            .replace('<DscItem />', "")#cuando viene sin descripcion en este formato, linea causa error
         )
-        pattern = r'<NmbItem>(.*?)</NmbItem>\s*<DscItem/>'
-        replacement = r'<NmbItem>\1</NmbItem><DscItem>\1</DscItem>'
-        xml = re.sub(pattern, replacement, xml)
-        
         if check:
             return xml
         xml = xml.replace('xmlns="http://www.sii.cl/SiiDte"', "")
+        xml = xml.replace('<DscItem />', "")
         if mode == "etree":
             parser = etree.XMLParser(remove_blank_text=True)
             return etree.fromstring(xml, parser=parser)
