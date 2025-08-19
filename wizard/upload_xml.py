@@ -951,9 +951,8 @@ class UploadXMLWizard(models.TransientModel):
                         "tax_ids": [(6, 0, [])],  # sin impuestos
                     }
                 ])
-                
-        # Procesar recargo específico para Indura
-        lines = self._indura_process_recargo(documento, lines, company_id)
+
+        
 
                 # === Agregar línea rounding si hay diferencia con el neto declarado ===
         if not self.crear_po:
@@ -1010,6 +1009,9 @@ class UploadXMLWizard(models.TransientModel):
                 }
                 
                 lines.append([0, 0, rounding_line])
+                
+        # Procesar recargo específico para Indura
+        lines = self._indura_process_recargo(documento, lines, company_id)
 
         # if 'IVATerc' in dte['Encabezado']['Totales']:
         #    imp = self._buscar_impuesto(name="IVATerc" )
