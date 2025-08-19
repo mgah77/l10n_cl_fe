@@ -842,6 +842,63 @@ class UploadXMLWizard(models.TransientModel):
                     new_line["date_planned"] = data['date_order']
                 lines.append([0,0, new_line])
         return lines
+    
+    def _indura_process_recargo(self, documento, lines, company_id):
+        """
+        Procesa recargos específicos para el RUT 76150343-K (Indura S.A.)
+        Agrega una línea de producto 'Recargo' si existe <RecargoMonto>
+        """
+        # Verificar si es el RUT específico
+        rut_emisor = documento.find("Encabezado/Emisor/RUTEmisor")
+        if rut_emisor is None or rut_emisor.text != "76150343-K":
+            return lines
+        
+        # Buscar elementos RecargoMonto en todas las líneas de detalle
+        recargo_total = 0
+        detalles = documento.findall("Detalle")
+        
+        for detalle in detalles:
+            recargo_monto = detalle.find("RecargoMonto")
+            if recargo_monto is not None and recargo_monto.text:
+                try:
+                    recargo_total += float(recargo_monto.text)
+                except (ValueError, TypeError):
+                    _logger.warning(f"RecargoMonto con valor inválido: {recargo_monto.text}")
+                    continue
+        
+        # Si hay recargo total, agregar línea de producto
+        if recargo_total > 0:
+            # Buscar o crear producto específico para recargo
+            product_recargo = self.env["product.product"].search([
+                ("name", "=", "Recargo")
+            ], limit=1)
+
+            if not product_recargo:
+                product_recargo = self.env["product.product"].create({
+                    "name": "Recargo",
+                    "sale_ok": False,
+                    "purchase_ok": True,
+                    "type": "service",
+                    "lst_price": recargo_total,
+                    "categ_id": self._default_category(),
+                })
+
+            # Crear línea de recargo
+            recargo_line = {
+                "product_id": product_recargo.id,
+                "name": "Recargo",
+                "price_unit": recargo_total,
+                "quantity": 1,
+                "price_subtotal": recargo_total,
+                "tax_ids": [(6, 0, [])],  # sin impuestos
+                "product_uom_id": product_recargo.uom_id.id,
+                "ind_exe": False,  # No es exenta
+            }
+            
+            # Agregar la línea al final de las líneas existentes
+            lines.append([0, 0, recargo_line])
+        
+        return lines
 
     def _get_data(self, documento, company_id, ignore_journal=False):
         Encabezado = documento.find("Encabezado")
@@ -894,6 +951,10 @@ class UploadXMLWizard(models.TransientModel):
                         "tax_ids": [(6, 0, [])],  # sin impuestos
                     }
                 ])
+                
+        # Procesar recargo específico para Indura
+        lines = self._indura_process_recargo(documento, lines, company_id)
+
                 # === Agregar línea rounding si hay diferencia con el neto declarado ===
         if not self.crear_po:
             line_dicts = [l[2] for l in lines if isinstance(l, list) and len(l) > 2]
