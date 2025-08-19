@@ -846,7 +846,7 @@ class UploadXMLWizard(models.TransientModel):
     def _indura_process_recargo(self, documento, lines, company_id):
         """
         Procesa recargos específicos para el RUT 76150343-K (Indura S.A.)
-        Agrega una línea de producto 'Recargo' si existe <RecargoMonto>
+        Agrega una línea de producto 'Recargo' si existe <RecargoMonto> (sin IVA incluido)
         """
         # Verificar si es el RUT específico
         rut_emisor = documento.find("Encabezado/Emisor/RUTEmisor")
@@ -866,7 +866,7 @@ class UploadXMLWizard(models.TransientModel):
                     _logger.warning(f"RecargoMonto con valor inválido: {recargo_monto.text}")
                     continue
         
-        # Si hay recargo total, agregar línea de producto
+        # Si hay recargo total, agregar línea de producto con impuesto
         if recargo_total > 0:
             # Buscar o crear producto específico para recargo
             product_recargo = self.env["product.product"].search([
@@ -883,14 +883,24 @@ class UploadXMLWizard(models.TransientModel):
                     "categ_id": self._default_category(),
                 })
 
-            # Crear línea de recargo
+            # Buscar impuesto IVA (19%) para compras
+            impuesto_iva = self._buscar_impuesto(
+                type="purchase",
+                amount=19,
+                sii_code=14,
+                ind_exe=False,
+                company_id=company_id,
+                refund=False
+            )
+
+            # Crear línea de recargo CON impuesto (el monto ya es sin IVA)
             recargo_line = {
                 "product_id": product_recargo.id,
                 "name": "Recargo",
-                "price_unit": recargo_total,
+                "price_unit": recargo_total,  # Precio sin IVA (el monto original)
                 "quantity": 1,
-                "price_subtotal": recargo_total,
-                "tax_ids": [(6, 0, [])],  # sin impuestos
+                "price_subtotal": recargo_total,  # Subtotal sin IVA
+                "tax_ids": [(6, 0, impuesto_iva.ids)],  # Con impuesto IVA (se aplicará 19% sobre recargo_total)
                 "product_uom_id": product_recargo.uom_id.id,
                 "ind_exe": False,  # No es exenta
             }
@@ -1009,7 +1019,7 @@ class UploadXMLWizard(models.TransientModel):
                 }
                 
                 lines.append([0, 0, rounding_line])
-                
+
         # Procesar recargo específico para Indura
         lines = self._indura_process_recargo(documento, lines, company_id)
 
