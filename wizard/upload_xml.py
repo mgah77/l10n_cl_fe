@@ -119,12 +119,37 @@ class UploadXMLWizard(models.TransientModel):
             .replace('<?xml version="1.0" encoding="ISO-8859-1"?>', "")
             .replace('<?xml version="1.0" encoding="ISO-8859-1" ?>', "")
             .replace('<?xml version="1.0" encoding="ISO-8859-1" standalone="no"?>', "")     
-            .replace('<DscItem />', "")#cuando viene sin descripcion en este formato, linea causa error
         )
+        
+        # Reemplazar <DscItem/> con <DscItem>valor de NmbItem</DscItem>
+        # Buscar todas las ocurrencias de <NmbItem>valor</NmbItem> seguido de <DscItem/>
+        start = 0
+        while True:
+            # Buscar el próximo NmbItem
+            nmb_start = xml.find('<NmbItem>', start)
+            if nmb_start == -1:
+                break
+                
+            nmb_end = xml.find('</NmbItem>', nmb_start)
+            if nmb_end == -1:
+                break
+                
+            # Extraer el valor
+            value_start = nmb_start + len('<NmbItem>')
+            nmb_value = xml[value_start:nmb_end]
+            
+            # Buscar DscItem vacío después de este NmbItem
+            dsc_start = xml.find('<DscItem/>', nmb_end)
+            if dsc_start != -1:
+                # Reemplazar <DscItem/> con <DscItem>valor</DscItem>
+                xml = xml[:dsc_start] + f'<DscItem>{nmb_value}</DscItem>' + xml[dsc_start + len('<DscItem/>'):]
+                start = dsc_start + len(f'<DscItem>{nmb_value}</DscItem>')
+            else:
+                start = nmb_end
+        
         if check:
             return xml
         xml = xml.replace('xmlns="http://www.sii.cl/SiiDte"', "")
-        xml = xml.replace('<DscItem />', "")
         if mode == "etree":
             parser = etree.XMLParser(remove_blank_text=True)
             return etree.fromstring(xml, parser=parser)
