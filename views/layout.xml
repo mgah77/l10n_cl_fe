@@ -319,7 +319,7 @@
                                         <span t-field="l.name"/>
                                     </td>
                                     <td class="table-cell-no-padding" style="text-align: right;">
-                                        <span t-esc="formatLang(l.price_unit, currency_obj=l.currency_id, digits=0)"/>
+                                        <span t-field="l.price_unit" t-options="{'widget': 'monetary', 'display_currency': o.currency_id, 'digits': 0}"/>
                                     </td>
                                     <td class="table-cell-no-padding" style="text-align: right;">
                                         <span t-esc="'%.0f' % l.quantity"/>
