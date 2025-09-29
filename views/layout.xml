@@ -309,7 +309,7 @@
                             <tbody class="invoice_tbody" style="text-align: center;">
                                 <tr t-foreach="o.invoice_line_ids.sorted(key=lambda l: (l.sequence))" t-as="l" class="table-row-small">
                                     <td class="table-cell-no-padding">
-                                        <span t-field="l.sequence"/>
+                                        <!--span t-field="l.sequence"/-->
                                     </td>
                                     <td t-if="display_liquidacion" class="table-cell-no-padding">
                                         <span t-field="l.tpo_doc_liq"/>
