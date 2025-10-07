@@ -911,7 +911,23 @@ class UploadXMLWizard(models.TransientModel):
         return lines
 
     def _get_data(self, documento, company_id, ignore_journal=False):
+
+            # === Leer totales desde el XML (movido al inicio) ===
         Encabezado = documento.find("Encabezado")
+        totales = Encabezado.find("Totales")
+
+        vlr_pagar_node = totales.find("VlrPagar")
+        if vlr_pagar_node is not None and vlr_pagar_node.text:
+            valor_vlrpagar = int(vlr_pagar_node.text or 0)
+            if valor_vlrpagar != 0:
+                mnt_total_xml = valor_vlrpagar
+            else:
+                mnt_total_xml = int(totales.find("MntTotal").text or 0)
+        else:
+            mnt_total_xml = int(totales.find("MntTotal").text or 0)
+
+       #logica anterior
+
         IdDoc = Encabezado.find("IdDoc")
         price_included = Encabezado.find("MntBruto")
         journal_id = self._get_journal(IdDoc.find("TipoDTE").text, company_id, ignore_journal)
