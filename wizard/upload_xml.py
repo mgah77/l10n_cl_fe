@@ -906,7 +906,7 @@ class UploadXMLWizard(models.TransientModel):
             }
             
             # Agregar la línea al final de las líneas existentes
-            lines.append([0, 0, recargo_line])
+            #lines.append([0, 0, recargo_line])
         
         return lines
 
@@ -1025,7 +1025,7 @@ class UploadXMLWizard(models.TransientModel):
                     lines.append([0, 0, rounding_line])
 
         # Procesar recargo específico para Indura
-        lines = self._indura_process_recargo(documento, lines, company_id)
+        #lines = self._indura_process_recargo(documento, lines, company_id)
 
         # if 'IVATerc' in dte['Encabezado']['Totales']:
         #    imp = self._buscar_impuesto(name="IVATerc" )
