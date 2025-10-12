@@ -411,14 +411,18 @@ class UploadXMLWizard(models.TransientModel):
         product_id = False
         product_supplier = False
 
-        # 1) Buscar producto por nombre EXACTO
+        # 1) Buscar por nombre EXACTO
         product_id = self.env["product.product"].search(
-            [("name", "=", NmbItem)],
-            limit=1
+            [("name", "=", NmbItem)], limit=1
         )
 
-        # 2) Si no existe y es COMPRAS, intentar buscar por supplierinfo (nombre exacto del proveedor)
+        # 2) Si no existe y es COMPRAS
         if not product_id and self.type == "compras":
+            # --- PRE-PROCESO: devolver string y NO exigir proveedor ---
+            if self.pre_process:
+                return NmbItem
+
+            # --- CREACIÓN REAL: ahora sí exigir proveedor y buscar supplierinfo ---
             if not self.document_id or not self.document_id.partner_id:
                 raise UserError(_("No se encuentra el proveedor para asociar el producto '%s'") % NmbItem)
 
@@ -431,23 +435,21 @@ class UploadXMLWizard(models.TransientModel):
                 raise UserError(_("Plantilla Producto para el proveedor marcada como archivada"))
 
             if product_supplier:
-                product_id = product_supplier.product_id or \
-                            (product_supplier.product_tmpl_id and product_supplier.product_tmpl_id.product_variant_id)
+                product_id = (product_supplier.product_id
+                            or (product_supplier.product_tmpl_id
+                                and product_supplier.product_tmpl_id.product_variant_id))
 
-            # 3) Si sigue sin existir, crear o devolver string según estado
+            # Si aún no hay producto, crearlo (no estamos en pre_proceso)
             if not product_id:
-                if not self.pre_process:
-                    product_id = self._create_prod(line, company_id, price_included, exenta, refund)
-                else:
-                    return NmbItem
+                product_id = self._create_prod(line, company_id, price_included, exenta, refund)
 
-        # 4) En VENTAS, si no existe aún, crearlo
+        # 3) En VENTAS, si no existe aún, crearlo
         elif self.type == "ventas" and not product_id:
             product_id = self._create_prod(line, company_id, price_included, exenta, refund)
 
-        # 5) Crear supplierinfo (sin usar default_code ni barcode) si corresponde
-        if (not product_supplier and self.document_id and self.document_id.partner_id and
-                self.type == "compras" and product_id and not isinstance(product_id, str)):
+        # 4) Crear supplierinfo (solo en compras reales, no pre_proceso)
+        if (not self.pre_process and not product_supplier and self.document_id and self.document_id.partner_id
+                and self.type == "compras" and product_id and not isinstance(product_id, str)):
             price = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else \
                     float(line.find("MontoItem").text)
             if price_included:
@@ -463,11 +465,12 @@ class UploadXMLWizard(models.TransientModel):
                 "product_id": product_id.id,
             })
 
-        # 6) Validar archivado
+        # 5) Validar archivado
         if product_id and not isinstance(product_id, str) and not product_id.active:
             raise UserError(_("Producto para el proveedor marcado como archivado"))
 
         return product_id
+
 
 
     def _buscar_purchase_line_id(self, line_new):
