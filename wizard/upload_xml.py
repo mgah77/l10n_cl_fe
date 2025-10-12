@@ -404,80 +404,71 @@ class UploadXMLWizard(models.TransientModel):
 
     def _buscar_producto(self, line, company_id,
                         price_included=False, exenta=False, refund=False):
-        default_code = False
-        CdgItem = line.find("CdgItem")
-        NmbItem = line.find("NmbItem").text
-        if NmbItem.isspace():
+        NmbItem = (line.find("NmbItem").text or "").strip()
+        if not NmbItem:
             NmbItem = "Producto Genérico"
-        query = False
+
         product_id = False
-        if CdgItem is not None:
-            for c in line.findall("CdgItem"):
-                VlrCodigo = c.find("VlrCodigo")
-                if VlrCodigo is None or VlrCodigo.text is None or VlrCodigo.text.isspace():
-                    continue
-                TpoCodigo = c.find("TpoCodigo").text
-                if TpoCodigo == "ean13":
-                    query = [("barcode", "=", VlrCodigo.text)]
-                elif TpoCodigo == "INT1":
-                    query = [("default_code", "=", VlrCodigo.text)]
-                default_code = VlrCodigo.text
-        if not query:
-            query = [("name", "=", NmbItem)]
-        product_id = self.env["product.product"].search(query)
         product_supplier = False
+
+        # 1) Buscar producto por nombre EXACTO
+        product_id = self.env["product.product"].search(
+            [("name", "=", NmbItem)],
+            limit=1
+        )
+
+        # 2) Si no existe y es COMPRAS, intentar buscar por supplierinfo (nombre exacto del proveedor)
         if not product_id and self.type == "compras":
-            query2 = [("partner_id", "=", self.document_id.partner_id.id)]
-            if default_code:
-                query2.append(("product_code", "=", default_code))
-            else:
-                query2.append(("product_name", "=", NmbItem))
-            product_supplier = self.env["product.supplierinfo"].search(query2)
-            if product_supplier and not product_supplier.product_tmpl_id.active:
-                raise UserError(_("Plantilla Producto para el proveedor marcado como archivado"))
-            product_id = product_supplier.product_id or product_supplier.product_tmpl_id.product_variant_id
+            if not self.document_id or not self.document_id.partner_id:
+                raise UserError(_("No se encuentra el proveedor para asociar el producto '%s'") % NmbItem)
+
+            product_supplier = self.env["product.supplierinfo"].search(
+                [("partner_id", "=", self.document_id.partner_id.id),
+                ("product_name", "=", NmbItem)],
+                limit=1
+            )
+            if product_supplier and product_supplier.product_tmpl_id and not product_supplier.product_tmpl_id.active:
+                raise UserError(_("Plantilla Producto para el proveedor marcada como archivada"))
+
+            if product_supplier:
+                product_id = product_supplier.product_id or \
+                            (product_supplier.product_tmpl_id and product_supplier.product_tmpl_id.product_variant_id)
+
+            # 3) Si sigue sin existir, crear o devolver string según estado
             if not product_id:
                 if not self.pre_process:
-                    product_id = self._create_prod(line, company_id,
-                                    price_included, exenta, refund)
+                    product_id = self._create_prod(line, company_id, price_included, exenta, refund)
                 else:
-                    code = ""
-                    coma = ""
-                    for c in line.findall("CdgItem"):
-                        if c.find("TpoCodigo").text:
-                            code += coma + c.find("TpoCodigo").text + " "
+                    return NmbItem
 
-                        if c.find("VlrCodigo").text:
-                            code += c.find("VlrCodigo").text
-                        coma = ", "
-                    if code != "":
-                        return NmbItem + "" + code
-                    else:
-                        return NmbItem
-
+        # 4) En VENTAS, si no existe aún, crearlo
         elif self.type == "ventas" and not product_id:
-            product_id = self._create_prod(line, company_id, price_included,
-                                           exenta, refund)
-        if not product_supplier and self.document_id.partner_id and self.type == "compras":
-            price = float(
-                line.find("PrcItem").text if line.find("PrcItem") is not None else line.find("MontoItem").text
-            )
+            product_id = self._create_prod(line, company_id, price_included, exenta, refund)
+
+        # 5) Crear supplierinfo (sin usar default_code ni barcode) si corresponde
+        if (not product_supplier and self.document_id and self.document_id.partner_id and
+                self.type == "compras" and product_id and not isinstance(product_id, str)):
+            price = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else \
+                    float(line.find("MontoItem").text)
             if price_included:
-                price = product_id.supplier_taxes_id.compute_all(price, self.env.user.company_id.currency_id, 1)[
-                    "total_excluded"
-                ]
-            supplier_info = {
+                price = product_id.supplier_taxes_id.compute_all(
+                    price, self.env.user.company_id.currency_id, 1
+                )["total_excluded"]
+
+            self.env["product.supplierinfo"].create({
                 "partner_id": self.document_id.partner_id.id,
                 "product_name": NmbItem,
-                "product_code": default_code,
                 "product_tmpl_id": product_id.product_tmpl_id.id,
                 "price": price,
                 "product_id": product_id.id,
-            }
-            self.env["product.supplierinfo"].create(supplier_info)
-        if not product_id.active:
+            })
+
+        # 6) Validar archivado
+        if product_id and not isinstance(product_id, str) and not product_id.active:
             raise UserError(_("Producto para el proveedor marcado como archivado"))
+
         return product_id
+
 
     def _buscar_purchase_line_id(self, line_new):
         if not self.purchase_to_done:
