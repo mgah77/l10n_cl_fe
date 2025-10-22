@@ -968,7 +968,8 @@ class UploadXMLWizard(models.TransientModel):
                         "price_unit": monto_imp,
                         "quantity": 1,
                         "price_subtotal": monto_imp,
-                        "tax_ids": [(6, 0, [])],  # sin impuestos
+                        "tax_ids": [(6, 0, [])],
+                        "ind_exe": "2",  # sin impuestos
                     }
                 ])
 
