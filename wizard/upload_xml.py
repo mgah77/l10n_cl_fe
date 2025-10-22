@@ -997,9 +997,7 @@ class UploadXMLWizard(models.TransientModel):
                 # Total calculado
                 total_calculado = subtotal_afecto + iva_calculado + subtotal_exento
                 
-                # Total del XML
-                mnt_total_xml = int(Encabezado.find("Totales/MntTotal").text or 0)
-                
+                              
                 # Diferencia
                 diferencia = mnt_total_xml - total_calculado
 
