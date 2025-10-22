@@ -990,12 +990,13 @@ class UploadXMLWizard(models.TransientModel):
                 # Calcular IVA (19% del subtotal afecto)
                 iva_calculado = subtotal_afecto * 0.19
                 
-                # Sumar líneas exentas
-                subtotal_exento = sum(
-                    l.get('price_subtotal', 0.0) 
-                    for l in line_dicts 
-                    if l.get('ind_exe', False)
-                )
+                
+                # === Calcular líneas exentas (IndExe = 2 o 6) ===
+                lineas_exentas = [
+                    l for l in line_dicts
+                    if str(l.get('ind_exe')).strip() in ['2', '6']
+                ]
+                subtotal_exento = sum(l.get('price_subtotal', 0.0) for l in lineas_exentas)
                 
                 # Total calculado
                 total_calculado = subtotal_afecto + iva_calculado + subtotal_exento
