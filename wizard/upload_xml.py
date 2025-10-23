@@ -919,6 +919,7 @@ class UploadXMLWizard(models.TransientModel):
                 mnt_total_xml = int(totales.find("MntTotal").text or 0)
         else:
             mnt_total_xml = int(totales.find("MntTotal").text or 0)
+        
 
        #logica anterior
 
@@ -1000,6 +1001,9 @@ class UploadXMLWizard(models.TransientModel):
                               
                 # Diferencia
                 diferencia = mnt_total_xml - total_calculado
+                _logger.warning(f" mnt_total_xml = {mnt_total_xml}")  # Línea añadida para debug
+                _logger.warning(f" total_calculado = {total_calculado}")  # Línea añadida para debug
+
 
                 if abs(diferencia) >= 1:  # Solo si diferencia es significativa
                     producto_rounding = self.env["product.product"].search([
