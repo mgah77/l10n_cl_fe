@@ -995,8 +995,29 @@ class UploadXMLWizard(models.TransientModel):
                 lineas_exentas = [l for l in line_dicts if l not in lineas_afectas]
                 subtotal_exento = sum(l.get('price_subtotal', 0.0) for l in lineas_exentas)
                 
+                # Si existen descuentos o recargos globales, ajustar el total
+                ajuste_global = 0.0
+                for dr in documento.findall("DscRcgGlobal"):
+                    tipo_mov = dr.find("TpoMov").text  # "D" descuento o "R" recargo
+                    tipo_valor = dr.find("TpoValor").text  # "%" o "$"
+                    valor = float(dr.find("ValorDR").text or 0.0)
+
+                    if tipo_valor == "%":
+                        # Porcentaje sobre el neto (subtotal afecto + exento)
+                        base = sum(l.get('price_subtotal', 0.0) for l in line_dicts)
+                        monto = base * (valor / 100.0)
+                    else:
+                        # Monto absoluto en pesos
+                        monto = valor
+
+                    # Si es descuento ("D"), se resta; si es recargo ("R"), se suma
+                    if tipo_mov == "D":
+                        ajuste_global -= monto
+                    else:
+                        ajuste_global += monto
+
                 # Total calculado
-                total_calculado = subtotal_afecto + iva_calculado + subtotal_exento
+                total_calculado = subtotal_afecto + iva_calculado + subtotal_exento + ajuste_global
                 
                               
                 # Diferencia
