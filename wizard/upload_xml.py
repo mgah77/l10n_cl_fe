@@ -987,37 +987,36 @@ class UploadXMLWizard(models.TransientModel):
                 # Filtrar líneas afectas (no exentas)
                 lineas_afectas = [l for l in line_dicts if not l.get('ind_exe', False)]
                 subtotal_afecto = sum(l.get('price_subtotal', 0.0) for l in lineas_afectas)
-                
-                # Calcular IVA (19% del subtotal afecto)
-                iva_calculado = subtotal_afecto * 0.19
-                
+ 
                 # Exentas = todo lo que NO está en afectas
                 lineas_exentas = [l for l in line_dicts if l not in lineas_afectas]
                 subtotal_exento = sum(l.get('price_subtotal', 0.0) for l in lineas_exentas)
-                
-                # Si existen descuentos o recargos globales, ajustar el total
+ 
+                # Buscar descuentos/recargos globales
                 ajuste_global = 0.0
                 for dr in documento.findall("DscRcgGlobal"):
-                    tipo_mov = dr.find("TpoMov").text  # "D" descuento o "R" recargo
-                    tipo_valor = dr.find("TpoValor").text  # "%" o "$"
+                    tipo_mov = (dr.find("TpoMov").text or "").strip()  # "D" o "R"
+                    tipo_valor = (dr.find("TpoValor").text or "").strip()  # "%" o "$"
                     valor = float(dr.find("ValorDR").text or 0.0)
 
                     if tipo_valor == "%":
-                        # Porcentaje sobre el neto (subtotal afecto + exento)
-                        base = sum(l.get('price_subtotal', 0.0) for l in line_dicts)
-                        monto = base * (valor / 100.0)
+                        monto = subtotal_afecto * (valor / 100.0)  # sólo sobre afecto
                     else:
-                        # Monto absoluto en pesos
                         monto = valor
 
-                    # Si es descuento ("D"), se resta; si es recargo ("R"), se suma
                     if tipo_mov == "D":
                         ajuste_global -= monto
-                    else:
+                    elif tipo_mov == "R":
                         ajuste_global += monto
 
-                # Total calculado
-                total_calculado = subtotal_afecto + iva_calculado + subtotal_exento + ajuste_global
+                # Aplicar descuento o recargo global sobre el afecto
+                subtotal_afecto_ajustado = subtotal_afecto + ajuste_global
+
+                # Calcular IVA sobre el neto afecto ajustado
+                iva_calculado = subtotal_afecto_ajustado * 0.19
+
+                # Total calculado final
+                total_calculado = subtotal_afecto_ajustado + iva_calculado + subtotal_exento
                 
                               
                 # Diferencia
