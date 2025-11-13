@@ -646,6 +646,7 @@
         <field name="report_file">l10n_cl_fe.report_invoice_cedible</field>
         <field name="attachment_use">True</field>
         <field name="attachment">(object.state == 'posted') and ('CED_'+(object.name or '').replace('/','')+'.pdf')</field>
+        <field name="print_report_name">(object.state == 'posted') and ('CED_'+(object.name or '').replace('/',''))</field>
         <field name="binding_model_id" ref="model_account_move"/>
         <field name="binding_type">report</field>
     </record>
@@ -657,6 +658,7 @@
         <field name="report_file">l10n_cl_fe.report_invoice_and_cedible</field>
         <field name="attachment_use">True</field>
         <field name="attachment">(object.state == 'posted') and ('FyC_'+(object.name or '').replace('/','')+'.pdf')</field>
+        <field name="print_report_name">(object.state == 'posted') and ('FyC_'+(object.name or '').replace('/',''))</field>
         <field name="binding_model_id" ref="model_account_move"/>
         <field name="binding_type">report</field>
     </record>
