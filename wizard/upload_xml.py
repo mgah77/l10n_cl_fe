@@ -1016,7 +1016,7 @@ class UploadXMLWizard(models.TransientModel):
                 subtotal_afecto_ajustado = subtotal_afecto + ajuste_global
 
                 # Calcular IVA sobre el neto afecto ajustado
-                iva_calculado = subtotal_afecto_ajustado * 0.19
+                iva_calculado = round(subtotal_afecto_ajustado * 0.19)
 
                 # Total calculado final
                 total_calculado = subtotal_afecto_ajustado + iva_calculado + subtotal_exento
