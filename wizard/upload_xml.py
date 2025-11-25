@@ -781,7 +781,7 @@ class UploadXMLWizard(models.TransientModel):
                     "amount": Encabezado.find("Totales/MntTotal").text,
                     "monto_no_facturable": monto_no_facturable,
                     "action": action,
-                    "partner_id": partner_id.id,
+                    "partner_id": partner_id,
                 }
             )
         Referencias = documento.findall("Referencia")
