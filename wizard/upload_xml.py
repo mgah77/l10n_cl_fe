@@ -1341,21 +1341,6 @@ class UploadXMLWizard(models.TransientModel):
                         inv.id
                     ))
 
-                    # === Ajustar SOLO la línea payment_term para que el pago no reste rounding ===
-                    for line in inv.line_ids:
-                        if line.move_id == inv and line.display_type == 'payment_term' and line.balance != 0:
-                            total = mnt_total  # total del XML
-
-                            # Asignar crédito (factura de compra) y corregir signo
-                            line.debit = 0
-                            line.credit = total
-                            line.balance = -total
-                            # Campos relacionados
-                            line.amount_currency = -total
-                            line.amount_residual = -total
-                            line.amount_residual_currency = -total
-                            break
-
                     # === Fecha de vencimiento: FchVenc o FchEmis + 30 ===
                     fch_emis = encabezado.find("IdDoc/FchEmis").text
                     fch_venc_node = encabezado.find("IdDoc/FchVenc")
