@@ -928,6 +928,8 @@ class UploadXMLWizard(models.TransientModel):
         price_included = Encabezado.find("MntBruto")
         journal_id = self._get_journal(IdDoc.find("TipoDTE").text, company_id, ignore_journal)
         data = self._prepare_data(documento, company_id, journal_id)
+        if self.document_id and data.get("partner_id") and not self.document_id.partner_id:
+            self.document_id.partner_id = data["partner_id"]
         lines = [(5,)]
         self._dte_exist(documento)
         lines.extend(
