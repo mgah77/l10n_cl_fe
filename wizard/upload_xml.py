@@ -990,8 +990,9 @@ class UploadXMLWizard(models.TransientModel):
                 # Filtrar líneas afectas (no exentas)
                 lineas_afectas = [l for l in line_dicts if not l.get('ind_exe', False)]
                 # Calcular subtotal afecto igual que en Odoo (price_unit * quantity)
+                # aplicando el descuento
                 subtotal_afecto = sum(
-                    (float(l.get('price_unit', 0.0)) * float(l.get('quantity', 1.0)))
+                    (float(l.get('price_unit', 0.0)) * float(l.get('quantity', 1.0)) * (1 - (float(l.get('discount', 0.0)) / 100.0)))
                     for l in lineas_afectas
                 )
                 # Exentas = todo lo que NO está en afectas
