@@ -995,27 +995,14 @@ class UploadXMLWizard(models.TransientModel):
                 for l in lineas_afectas:
                     price_unit = float(l.get('price_unit', 0.0))
                     qty = float(l.get('quantity', 1.0))
-                    discount_pct = float(l.get('discount', 0.0))
-                    price_subtotal_xml = float(l.get('price_subtotal', 0.0))
-
+                    discount = float(l.get('discount', 0.0))
+                    
                     bruto = price_unit * qty
                     
-                    # Si no hay porcentaje (0), calculamos el % basándonos en el DescuentoMonto
-                    if discount_pct == 0:
-                        # 1. Obtenemos el valor del DescuentoMonto (diferencia entre bruto y neto del XML)
-                        # Usamos float_round con 0 decimales para simular el tag entero (ej: 1252)
-                        descuento_monto = float_round(bruto - price_subtotal_xml, precision_digits=0)
-                        
-                        # 2. Calculamos el porcentaje a partir de ese monto
-                        if bruto > 0:
-                            discount_pct = (descuento_monto / bruto) * 100
-
-                    # 3. Aplicamos el código "como estaba" (calculando descuento basado en el % y redondeando)
-                    descuento = float_round(bruto * (discount_pct / 100.0), precision_digits=0)
+                    descuento = float_round(bruto * (discount / 100.0), precision_digits=0)
                     
                     neto_linea = bruto - descuento
                     
-                    # 4. Redondeo final de la línea (5008.5 -> 5009)
                     subtotal_afecto += float_round(neto_linea, precision_digits=0)
                 # Exentas = todo lo que NO está en afectas
                 lineas_exentas = [l for l in line_dicts if l not in lineas_afectas]
