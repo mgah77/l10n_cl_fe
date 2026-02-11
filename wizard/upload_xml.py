@@ -524,6 +524,7 @@ class UploadXMLWizard(models.TransientModel):
         DscItem = line.find("DscItem")
         IndExe = line.find("IndExe")
         ind_exe = IndExe.text if IndExe is not None else False
+
         qty_field = "product_qty" if self.crear_po else "quantity"
         data.update(
             {
@@ -604,6 +605,13 @@ class UploadXMLWizard(models.TransientModel):
             discount = 0
             if line.find("DescuentoPct") is not None:
                 discount = float(line.find("DescuentoPct").text)
+            elif line.find("DescuentoMonto") is not None:
+                desc_monto = float(line.find("DescuentoMonto").text)
+                # Verificamos que exista QtyItem y que el precio sea válido
+                if line.find("QtyItem") is not None and price > 0:
+                    qty = float(line.find("QtyItem").text)
+                    if qty > 0:
+                        discount = (desc_monto / (price * qty)) * 100
             purchase_line_id = line_id.purchase_line_id
             if not self.document_id and not purchase_line_id:
                 purchase_line_id = self._buscar_purchase_line_id(line)
@@ -995,15 +1003,24 @@ class UploadXMLWizard(models.TransientModel):
                 for l in lineas_afectas:
                     price_unit = float(l.get('price_unit', 0.0))
                     qty = float(l.get('quantity', 1.0))
-                    discount = float(l.get('discount', 0.0))
-                    
+                    discount_pct = float(l.get('discount', 0.0))
+                    price_subtotal_xml = float(l.get('price_subtotal', 0.0))
+
                     bruto = price_unit * qty
                     
-                    descuento = float_round(bruto * (discount / 100.0), precision_digits=0)
+                    # Si no hay porcentaje (0), calculamos el % basándonos en el DescuentoMonto
+                    if discount_pct == 0:
+                        descuento_monto = float_round(bruto - price_subtotal_xml, precision_digits=0)
+                        
+                        if bruto > 0:
+                            discount_pct = (descuento_monto / bruto) * 100
+
+                    descuento = float_round(bruto * (discount_pct / 100.0), precision_digits=0)
                     
                     neto_linea = bruto - descuento
                     
                     subtotal_afecto += float_round(neto_linea, precision_digits=0)
+
                 # Exentas = todo lo que NO está en afectas
                 lineas_exentas = [l for l in line_dicts if l not in lineas_afectas]
                 subtotal_exento = sum(l.get('price_subtotal', 0.0) for l in lineas_exentas)
