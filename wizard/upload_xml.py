@@ -829,9 +829,9 @@ class UploadXMLWizard(models.TransientModel):
             )
         return journal_id
 
-    def _get_data_lines(self, xml_lines, data, price_included, company_id):
+    def _get_data_lines(self, xml_lines, data, price_included, company_id, exenta_override=False):
         dc = self.env["sii.document_class"].browse(data.get('document_class_id', False))
-        exenta = dc.es_factura_exenta() or dc.es_boleta_exenta()
+        exenta = bool(exenta_override) or dc.es_factura_exenta() or dc.es_boleta_exenta()
         lines = []
         for line in xml_lines:
             new_line = self._prepare_line(line,
@@ -919,6 +919,13 @@ class UploadXMLWizard(models.TransientModel):
         Encabezado = documento.find("Encabezado")
         totales = Encabezado.find("Totales")
 
+        mnt_neto = int(totales.find("MntNeto").text or 0) if totales.find("MntNeto") is not None else 0
+        iva_xml = int(totales.find("IVA").text or 0) if totales.find("IVA") is not None else 0
+        mnt_exe = int(totales.find("MntExe").text or 0) if totales.find("MntExe") is not None else 0
+
+        # Si los totales vienen como exentos, se fuerza exenta en las líneas aunque el TipoDTE sea 61.
+        exenta_por_totales = (mnt_exe > 0 and mnt_neto == 0 and iva_xml == 0)
+
         vlr_pagar_node = totales.find("VlrPagar")
         if vlr_pagar_node is not None and vlr_pagar_node.text:
             valor_vlrpagar = int(vlr_pagar_node.text or 0)
@@ -946,6 +953,7 @@ class UploadXMLWizard(models.TransientModel):
                 data,
                 price_included,
                 company_id,
+                exenta_override=exenta_por_totales
             )
         )
         product_id = (
@@ -990,7 +998,7 @@ class UploadXMLWizard(models.TransientModel):
                 # === Agregar línea rounding si hay diferencia con el neto declarado ===
         if not self.crear_po:
             tipo_dte = IdDoc.find("TipoDTE").text if IdDoc is not None else None
-            if tipo_dte == "34":
+            if tipo_dte == "34" or exenta_por_totales:
                 pass
             else:                    
                 line_dicts = [l[2] for l in lines if isinstance(l, list) and len(l) > 2]
