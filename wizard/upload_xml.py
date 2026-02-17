@@ -926,16 +926,26 @@ class UploadXMLWizard(models.TransientModel):
         # Si los totales vienen como exentos, se fuerza exenta en las líneas aunque el TipoDTE sea 61.
         exenta_por_totales = (mnt_exe > 0 and mnt_neto == 0 and iva_xml == 0)
 
+        # --- INICIO MODIFICACIÓN: Lógica de selección de monto total ---
         vlr_pagar_node = totales.find("VlrPagar")
-        if vlr_pagar_node is not None and vlr_pagar_node.text:
-            valor_vlrpagar = int(vlr_pagar_node.text or 0)
-            if valor_vlrpagar != 0:
-                mnt_total_xml = valor_vlrpagar
-            else:
-                mnt_total_xml = int(totales.find("MntTotal").text or 0)
+        mnt_total_node = totales.find("MntTotal")
+        monto_periodo_node = totales.find("MontoPeriodo")
+
+        # Obtener valores de forma segura
+        valor_vlrpagar = int(vlr_pagar_node.text or 0) if vlr_pagar_node is not None and vlr_pagar_node.text else 0
+        valor_mnttotal = int(mnt_total_node.text or 0) if mnt_total_node is not None and mnt_total_node.text else 0
+        valor_montoperiodo = int(monto_periodo_node.text or 0) if monto_periodo_node is not None and monto_periodo_node.text else 0
+
+        # Lógica de prioridad: VlrPagar > MntTotal > MontoPeriodo
+        if valor_vlrpagar != 0:
+            mnt_total_xml = valor_vlrpagar
+        elif valor_mnttotal != 0:
+            mnt_total_xml = valor_mnttotal
+        elif valor_montoperiodo != 0:
+            mnt_total_xml = valor_montoperiodo
         else:
-            mnt_total_xml = int(totales.find("MntTotal").text or 0)
-        
+            mnt_total_xml = valor_mnttotal # Si todo es 0, se mantiene 0
+        # --- FIN MODIFICACIÓN ---
 
        #logica anterior
 
@@ -1129,7 +1139,7 @@ class UploadXMLWizard(models.TransientModel):
         else:
             data.update({
                 "amount_untaxed": mnt_neto,
-                "amount_total": int(Encabezado.find("Totales/MntTotal").text)
+                "amount_total": mnt_total_xml
             })
         return data
 
