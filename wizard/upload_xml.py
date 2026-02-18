@@ -567,6 +567,16 @@ class UploadXMLWizard(models.TransientModel):
             #    refund=refund
             #)
             pass
+
+        if price_included and IndExe is None and not exenta:
+            # El precio actual incluye IVA, calcular base imponible
+            price = round(price / 1.19, 0)
+            price_subtotal = round(price_subtotal / 1.19, 0)
+            data.update({
+                "price_unit": price,
+                "price_subtotal": price_subtotal,
+            })
+
         if IndExe is None:
             tax_include = False
             for t in tax_ids:
@@ -961,7 +971,7 @@ class UploadXMLWizard(models.TransientModel):
             self._get_data_lines(
                 documento.findall("Detalle"),
                 data,
-                price_included,
+                price_included is not None,
                 company_id,
                 exenta_override=exenta_por_totales
             )
