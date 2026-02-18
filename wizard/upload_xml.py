@@ -581,9 +581,8 @@ class UploadXMLWizard(models.TransientModel):
                 price_subtotal = 0
                 for t in tax_ids:
                     if t.amount > 0:
-                        price += float_round(base / (1 + (t.amount / 100.0)), precision_digits=0)
-                        price_subtotal += float_round(base_subtotal / (1 + (t.amount / 100.0)), precision_digits=0)
-
+                        price += base / (1 + (t.amount / 100.0))
+                        price_subtotal += base_subtotal / (1 + (t.amount / 100.0))
             elif not price_included and tax_include:
                 price = tax_ids.compute_all(price, self.env.user.company_id.currency_id, 1)["total_included"]
                 price_subtotal = tax_ids.compute_all(price_subtotal, self.env.user.company_id.currency_id, 1)[
