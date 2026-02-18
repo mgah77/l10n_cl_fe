@@ -568,12 +568,6 @@ class UploadXMLWizard(models.TransientModel):
             #)
             pass
 
-        if price_included and IndExe is None and not exenta:
-            # El precio actual incluye IVA, calcular base imponible            
-            price_subtotal = round(price_subtotal / 1.19, 0)
-            data.update({
-                "price_subtotal": price_subtotal,
-            })
 
         if IndExe is None:
             tax_include = False
