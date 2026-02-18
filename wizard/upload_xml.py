@@ -489,140 +489,159 @@ class UploadXMLWizard(models.TransientModel):
             return lines[i]
         return self.env['purchase.order.line']
 
-    def _prepare_line(self, line, move_type, company_id, fpos_id,
-                      price_included=False, exenta=False):
-        line_id = self.env["mail.message.dte.document.line"]
-        create_line = True
-        if self.document_id:
-            line_id = line_id.search(
-                [
-                    ("sequence", "=", line.find("NroLinDet").text),
-                    ("document_id", "=", self.document_id.id),
-                ],limit=1
-            )
-            if not self.crear_po and not line_id.create_move_line:
-                create_line = False
-            if self.crear_po and not line_id.create_pol:
-                create_line = False
-        if not create_line:
-            return False
-        refund = move_type in ['out_refund', 'in_refund']
-        data = {}
-        product_id = line_id.product_id or self._buscar_producto(
-                                        line, company_id,
-                                        price_included, exenta, refund)
-        uom_id = False
-        if not isinstance(product_id, str):
-            data.update(
-                {"product_id": product_id.id,}
-            )
-            uom_id = product_id.uom_id.id
-        elif not product_id:
-            return False
-        price_subtotal = float(line.find("MontoItem").text)
-        price = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else price_subtotal
-        DscItem = line.find("DscItem")
-        IndExe = line.find("IndExe")
-        ind_exe = IndExe.text if IndExe is not None else False
+def _prepare_line(self, line, move_type, company_id, fpos_id,
+                  price_included=False, exenta=False):
+    line_id = self.env["mail.message.dte.document.line"]
+    create_line = True
+    if self.document_id:
+        line_id = line_id.search(
+            [
+                ("sequence", "=", line.find("NroLinDet").text),
+                ("document_id", "=", self.document_id.id),
+            ],limit=1
+        )
+        if not self.crear_po and not line_id.create_move_line:
+            create_line = False
+        if self.crear_po and not line_id.create_pol:
+            create_line = False
+    if not create_line:
+        return False
+    refund = move_type in ['out_refund', 'in_refund']
+    data = {}
+    product_id = line_id.product_id or self._buscar_producto(
+                                    line, company_id,
+                                    price_included, exenta, refund)
+    uom_id = False
+    if not isinstance(product_id, str):
+        data.update(
+            {"product_id": product_id.id,}
+        )
+        uom_id = product_id.uom_id.id
+    elif not product_id:
+        return False
+    price_subtotal = float(line.find("MontoItem").text)
+    price = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else price_subtotal
+    DscItem = line.find("DscItem")
+    IndExe = line.find("IndExe")
+    ind_exe = IndExe.text if IndExe is not None else False
 
-        qty_field = "product_qty" if self.crear_po else "quantity"
+    qty_field = "product_qty" if self.crear_po else "quantity"
+    qty = float(line.find("QtyItem").text) if line.find("QtyItem") is not None else 1
+    
+    data.update(
+        {
+            "sequence": line.find("NroLinDet").text,
+            "price_unit": price,
+            qty_field: qty,
+            "price_subtotal": price_subtotal,
+        }
+    )
+    if self.pre_process:
+        if isinstance(product_id, str):
+            data.update({
+                "new_product": product_id,
+                "product_description": DscItem.text if DscItem is not None else "",
+            })
         data.update(
             {
-                "sequence": line.find("NroLinDet").text,
-                "price_unit": price,
-                qty_field: line.find("QtyItem").text if line.find("QtyItem") is not None else 1,
-                "price_subtotal": price_subtotal,
+                "create_move_line": self.action in ['create_move', 'both'] or self.pre_process,
+                "create_pol": self.action in ['create_po', 'both'] or self.pre_process,
             }
         )
-        if self.pre_process:
-            if isinstance(product_id, str):
-                data.update({
-                    "new_product": product_id,
-                    "product_description": DscItem.text if DscItem is not None else "",
-                })
-            data.update(
-                {
-                    "create_move_line": self.action in ['create_move', 'both'] or self.pre_process,
-                    "create_pol": self.action in ['create_po', 'both'] or self.pre_process,
-                }
-            )
-        amount = 0
-        sii_code = 0
-        tax_ids = self.env["account.tax"]
+    amount = 0
+    sii_code = 0
+    tax_ids = self.env["account.tax"]
+    if IndExe is None and not exenta:
+        amount = 19
+        sii_code = 14
+    tax_ids += self._buscar_impuesto(
+        type="purchase" if self.type == "compras" else "sale",
+        amount=amount, sii_code=sii_code, ind_exe=ind_exe,
+        company_id=company_id,
+        refund=refund
+    )
+    if line.find("CodImpAdic") is not None:
+        #amount = 19
+        #tax_ids += self._buscar_impuesto(
+        #    type="purchase" if self.type == "compras" else "sale",
+        #    amount=amount, sii_code=line.find("CodImpAdic").text,
+        #    company_id=company_id,
+        #    refund=refund
+        #)
+        pass
+    
+    # --- MODIFICACIÓN: Manejar precios con IVA incluido (MntBruto) ---
+    if price_included:  # Si MntBruto está presente en el XML
         if IndExe is None and not exenta:
-            amount = 19
-            sii_code = 14
-        tax_ids += self._buscar_impuesto(
-            type="purchase" if self.type == "compras" else "sale",
-            amount=amount, sii_code=sii_code, ind_exe=ind_exe,
-            company_id=company_id,
-            refund=refund
-        )
-        if line.find("CodImpAdic") is not None:
-            #amount = 19
-            #tax_ids += self._buscar_impuesto(
-            #    type="purchase" if self.type == "compras" else "sale",
-            #    amount=amount, sii_code=line.find("CodImpAdic").text,
-            #    company_id=company_id,
-            #    refund=refund
-            #)
-            pass
-        if IndExe is None:
-            tax_include = False
+            # Calcular precio sin IVA para líneas afectas
+            price_without_tax = price / 1.19
+            price_subtotal_without_tax = price_subtotal / 1.19
+            
+            # Redondear a entero como lo hace el SII
+            data.update({
+                "price_unit": round(price_without_tax, 0),
+                "price_subtotal": round(price_subtotal_without_tax, 0),
+            })
+    # --- FIN MODIFICACIÓN ---
+    
+    # --- CÓDIGO ORIGINAL MANEJANDO price_include ---
+    if IndExe is None:
+        tax_include = False
+        for t in tax_ids:
+            if not tax_include:
+                tax_include = t.price_include
+        if price_included and not tax_include:
+            base = price
+            price = 0
+            base_subtotal = price_subtotal
+            price_subtotal = 0
             for t in tax_ids:
-                if not tax_include:
-                    tax_include = t.price_include
-            if price_included and not tax_include:
-                base = price
-                price = 0
-                base_subtotal = price_subtotal
-                price_subtotal = 0
-                for t in tax_ids:
-                    if t.amount > 0:
-                        price += base / (1 + (t.amount / 100.0))
-                        price_subtotal += base_subtotal / (1 + (t.amount / 100.0))
-            elif not price_included and tax_include:
-                price = tax_ids.compute_all(price, self.env.user.company_id.currency_id, 1)["total_included"]
-                price_subtotal = tax_ids.compute_all(price_subtotal, self.env.user.company_id.currency_id, 1)[
-                    "total_included"
-                ]
-        if ind_exe and ind_exe == "6":
-            price = price *-1
-            price_subtotal = price_subtotal *-1                  
-        data.update(
-            {
-                "name": DscItem.text if DscItem is not None else line.find("NmbItem").text,
-                "price_unit": price,
-                "price_subtotal": price_subtotal,
-            }
-        )
-        if self.crear_po:
-            data.update({
-                "product_uom": uom_id,
-                "taxes_id": [(6, 0, tax_ids.ids)],
-            })
-        else:
-            discount = 0
-            if line.find("DescuentoPct") is not None:
-                discount = float(line.find("DescuentoPct").text)
-            elif line.find("DescuentoMonto") is not None:
-                desc_monto = float(line.find("DescuentoMonto").text)
-                # Verificamos que exista QtyItem y que el precio sea válido
-                if line.find("QtyItem") is not None and price > 0:
-                    qty = float(line.find("QtyItem").text)
-                    if qty > 0:
-                        discount = (desc_monto / (price * qty)) * 100
-            purchase_line_id = line_id.purchase_line_id
-            if not self.document_id and not purchase_line_id:
-                purchase_line_id = self._buscar_purchase_line_id(line)
-            data.update({
-                "tax_ids": [(6, 0, tax_ids.ids)],
-                "product_uom_id": uom_id,
-                "discount": discount,
-                "purchase_line_id": purchase_line_id.id,
-                "ind_exe": ind_exe,
-            })
-        return data
+                if t.amount > 0:
+                    price += base / (1 + (t.amount / 100.0))
+                    price_subtotal += base_subtotal / (1 + (t.amount / 100.0))
+        elif not price_included and tax_include:
+            price = tax_ids.compute_all(price, self.env.user.company_id.currency_id, 1)["total_included"]
+            price_subtotal = tax_ids.compute_all(price_subtotal, self.env.user.company_id.currency_id, 1)[
+                "total_included"
+            ]
+    
+    if ind_exe and ind_exe == "6":
+        price = price *-1
+        price_subtotal = price_subtotal *-1                  
+    data.update(
+        {
+            "name": DscItem.text if DscItem is not None else line.find("NmbItem").text,
+            "price_unit": price,
+            "price_subtotal": price_subtotal,
+        }
+    )
+    if self.crear_po:
+        data.update({
+            "product_uom": uom_id,
+            "taxes_id": [(6, 0, tax_ids.ids)],
+        })
+    else:
+        discount = 0
+        if line.find("DescuentoPct") is not None:
+            discount = float(line.find("DescuentoPct").text)
+        elif line.find("DescuentoMonto") is not None:
+            desc_monto = float(line.find("DescuentoMonto").text)
+            # Verificamos que exista QtyItem y que el precio sea válido
+            if line.find("QtyItem") is not None and price > 0:
+                qty = float(line.find("QtyItem").text)
+                if qty > 0:
+                    discount = (desc_monto / (price * qty)) * 100
+        purchase_line_id = line_id.purchase_line_id
+        if not self.document_id and not purchase_line_id:
+            purchase_line_id = self._buscar_purchase_line_id(line)
+        data.update({
+            "tax_ids": [(6, 0, tax_ids.ids)],
+            "product_uom_id": uom_id,
+            "discount": discount,
+            "purchase_line_id": purchase_line_id.id if purchase_line_id else False,
+            "ind_exe": ind_exe,
+        })
+    return data
 
     def _create_tpo_doc(self, TpoDocRef, RazonRef=None):
         vals = dict(name=str(TpoDocRef), dte=False)
@@ -961,7 +980,7 @@ class UploadXMLWizard(models.TransientModel):
             self._get_data_lines(
                 documento.findall("Detalle"),
                 data,
-                price_included,
+                price_included is not None,
                 company_id,
                 exenta_override=exenta_por_totales
             )
