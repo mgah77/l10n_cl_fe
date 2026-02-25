@@ -2388,3 +2388,19 @@ class AccountMove(models.Model):
             elif self.currency_id.position == 'before':
                 res = '%s %s' % (self.currency_id.symbol, res)
         return res
+
+    def cron_get_dte_claim(self):
+        # Dominio: Facturas emitidas (Cliente y NC) con estado Proceso
+        domain = [
+            ('move_type', 'in', ['out_invoice', 'out_refund']),
+            ('sii_result', '=', 'Proceso'),
+        ]
+        
+        # Buscamos solo 1 registro, ordenado por fecha de creación (más antigua primero)
+        invoice = self.search(domain, order='create_date asc', limit=1)
+        
+        if invoice:
+            # Si existe, ejecutamos la función.
+            # Si falla (conexión, error SII), se lanzará la excepción,
+            # el cron se detendrá y reintentará en la próxima ejecución programada.
+            invoice.get_dte_claim()
