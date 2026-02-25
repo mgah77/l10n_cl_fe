@@ -521,16 +521,28 @@ class UploadXMLWizard(models.TransientModel):
             return False
         price_subtotal = float(line.find("MontoItem").text)
         price = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else price_subtotal
+
         DscItem = line.find("DscItem")
         IndExe = line.find("IndExe")
         ind_exe = IndExe.text if IndExe is not None else False
+        
+        qty = float(line.find("QtyItem").text) if line.find("QtyItem") is not None else 1.0
+        
+        # --- INICIO CORRECCIÓN: Ajustar price_unit si hay recargo ---
+        recargo_monto = line.find("RecargoMonto")
+        if recargo_monto is not None and recargo_monto.text:
+            recargo = float(recargo_monto.text)
+            # El price_subtotal ya incluye el recargo, calculamos price_unit efectivo
+            price_unit_efectivo = (price * qty + recargo) / qty
+            price = price_unit_efectivo  # <--- SOBRESCRIBIR price para que incluya recargo
+        # --- FIN CORRECCIÓN ---
 
         qty_field = "product_qty" if self.crear_po else "quantity"
         data.update(
             {
                 "sequence": line.find("NroLinDet").text,
                 "price_unit": price,
-                qty_field: line.find("QtyItem").text if line.find("QtyItem") is not None else 1,
+                qty_field: qty,
                 "price_subtotal": price_subtotal,
             }
         )
