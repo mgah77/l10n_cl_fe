@@ -2207,30 +2207,37 @@ class AccountMove(models.Model):
             except:
                 cod_val = 0
 
+            # Lógica para Código 15: Hay eventos registrados
             if cod_val == 15:
- 
+               
                 lista_eventos = inner_resp.listaEventosDoc
-
+              
                 for res in lista_eventos:
-
+               
                     if self.claim != "ACD":
                         if self.claim != "ERM":
                             self.claim = res.codEvento
-                 
-                            
-            # Aquí va la lógica de cambio de estado que mencionamos antes
-            date_end = self.create_date + relativedelta(days=8)
+                           
+
+            # Lógica para Código 16: Silencio Administrativo (No hay eventos)
+            if cod_val == 16:
+                date_end = self.invoice_date + timedelta(days=8)
+                if date_end <= datetime.now() and not self.claim:
+                    self.sii_result = "Aceptado"
+                    
+
+            # Lógica de asignación de estado SII basada en el claim
             if self.claim in ["ACD", "ERM", "PAG"]:
                 self.sii_result = "Aceptado"
-
+                
             elif self.claim == "RCD":
                 self.sii_result = "Rechazado"
-
+                
             elif self.claim in ["RFP", "RFT"]:
                 self.sii_result = "Reparo"
+                
 
-            elif date_end <= datetime.now() and self.claim == "N/D":
-                self.sii_result = "Aceptado"
+            
 
         except Exception as e:
             # Importar tools si no está importado arriba
