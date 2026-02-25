@@ -328,7 +328,6 @@ class ProcessMailsDocument(models.Model):
                 "Folio": folio,
             }
         ]
-        _logger.warning("0. folio: %s", folio)
         try:
             key = "RUT%sT%sF%s" % (rut_emisor, tipo_dte, folio)
             respuesta = fe.consulta_reclamo_documento(datos)[key]
