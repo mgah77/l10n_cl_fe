@@ -2203,7 +2203,7 @@ class AccountMove(models.Model):
             inner_resp = res_data.get('respuesta', {})
             _logger.warning("3. INNER_RESP: %s", inner_resp)
             
-            cod_resp = inner_resp.get('codResp')
+            cod_resp = inner_resp.codResp
             _logger.warning("4. COD_RESP: %s", cod_resp)
 
             # Convertimos a entero para comparar
