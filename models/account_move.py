@@ -2214,13 +2214,13 @@ class AccountMove(models.Model):
 
             if cod_val == 15:
                 _logger.warning("5. ENTRO AL IF, codResp ES 15")
-                lista_eventos = inner_resp.get('listaEventosDoc', [])
+                lista_eventos = inner_resp.listaEventosDoc
                 _logger.warning("6. LISTA_EVENTOS: %s", lista_eventos)
                 for res in lista_eventos:
                     _logger.warning("7. RES: %s", res)
                     if self.claim != "ACD":
                         if self.claim != "ERM":
-                            self.claim = res['codEvento']
+                            self.claim = res.codEvento
                             _logger.warning("8. ASIGNANDO CLAIM: %s", self.claim)
                             
             # Aquí va la lógica de cambio de estado que mencionamos antes
