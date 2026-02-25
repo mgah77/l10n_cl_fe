@@ -332,12 +332,19 @@ class ProcessMailsDocument(models.Model):
             key = "RUT%sT%sF%s" % (rut_emisor, tipo_dte, folio)
             respuesta = fe.consulta_reclamo_documento(datos)[key]
             self.claim_description = respuesta
-            if respuesta.get(key,
-                             {'respuesta': {'codResp': 9}})['respuesta']["codResp"] in [15]:
-                for res in respuesta.listaEventosDoc:
+            # 1. Acceder correctamente al código de respuesta
+            if respuesta.get('respuesta', {}).get('codResp') in [15]:
+                
+                # 2. Acceder correctamente a la lista de eventos
+                # (Además 'respuesta' es un diccionario, no un objeto, así que se usan corchetes [])
+                lista_eventos = respuesta.get('respuesta', {}).get('listaEventosDoc', [])
+                
+                for res in lista_eventos:
                     if self.claim != "ACD":
                         if self.claim != "ERM":
-                            self.claim = res.codEvento
+                            self.claim = res['codEvento'] # Usar corchetes si es diccionario
+                            
+            # ... resto del código ...
             date_end = self.create_date + relativedelta(days=8)
             if self.claim in ["ACD", "ERM", "PAG"]:
                 self.state = "accepted"
