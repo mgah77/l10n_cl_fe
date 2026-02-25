@@ -2221,9 +2221,14 @@ class AccountMove(models.Model):
             # Aquí va la lógica de cambio de estado que mencionamos antes
             date_end = self.create_date + relativedelta(days=8)
             if self.claim in ["ACD", "ERM", "PAG"]:
-                # CORREGIDO: Usamos sii_result en lugar de state
                 self.sii_result = "Aceptado"
-       
+
+            elif self.claim == "RCD":
+                self.sii_result = "Rechazado"
+
+            elif self.claim in ["RFP", "RFT"]:
+                self.sii_result = "Reparo"
+
             elif date_end <= datetime.now() and self.claim == "N/D":
                 self.sii_result = "Aceptado"
 
