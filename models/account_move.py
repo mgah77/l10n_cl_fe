@@ -2222,7 +2222,7 @@ class AccountMove(models.Model):
             # Lógica para Código 16: Silencio Administrativo (No hay eventos)
             if cod_val == 16:
                 date_end = self.invoice_date + timedelta(days=8)
-                if date_end <= datetime.now() and not self.claim:
+                if date_end <= date.today() and not self.claim:
                     self.sii_result = "Aceptado"
                     
 
