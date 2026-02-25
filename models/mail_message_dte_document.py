@@ -331,19 +331,19 @@ class ProcessMailsDocument(models.Model):
         try:
             key = "RUT%sT%sF%s" % (rut_emisor, tipo_dte, folio)
             respuesta = fe.consulta_reclamo_documento(datos)[key]
-            _logger.info("1. RESPUESTA: %s", respuesta)
+            _logger.warning("1. RESPUESTA: %s", respuesta)
             self.claim_description = respuesta
-            _logger.info("2. ACCESO A 'respuesta': %s", respuesta.get('respuesta', {}))
+            _logger.warning("2. ACCESO A 'respuesta': %s", respuesta.get('respuesta', {}))
             if respuesta.get('respuesta', {}).get('codResp') in [15]:
-                _logger.info("3. ENTRO AL IF, codResp ES 15")
+                _logger.warning("3. ENTRO AL IF, codResp ES 15")
                 lista_eventos = respuesta.get('respuesta', {}).get('listaEventosDoc', [])
-                _logger.info("4. LISTA_EVENTOS: %s", lista_eventos)
+                _logger.warning("4. LISTA_EVENTOS: %s", lista_eventos)
                 for res in lista_eventos:
-                    _logger.info("5. RES['codEvento']: %s", res['codEvento'])
+                    _logger.warning("5. RES['codEvento']: %s", res['codEvento'])
                     if self.claim != "ACD":
                         if self.claim != "ERM":
                             self.claim = res['codEvento']
-                            _logger.info("6. ASIGNANDO CLAIM: %s", self.claim)
+                            _logger.warning("6. ASIGNANDO CLAIM: %s", self.claim)
             date_end = self.create_date + relativedelta(days=8)
             if self.claim in ["ACD", "ERM", "PAG"]:
                 self.state = "accepted"
