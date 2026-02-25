@@ -2190,22 +2190,17 @@ class AccountMove(models.Model):
             key = "RUT%sT%sF%s" %(rut_emisor,
                                   tipo_dte, str(self.sii_document_number))
             
-            _logger.warning("1. RESPUESTA COMPLETA: %s", respuesta)
-            
             # Obtenemos el diccionario interno usando la key
             res_data = respuesta.get(key, {})
-            _logger.warning("2. RES_DATA (respuesta[key]): %s", res_data)
-            
+                     
             self.claim_description = res_data
             
             # Intentamos acceder a la estructura interna para actualizar claim
             # Basado en el JSON: {'status':..., 'respuesta': {'codResp': 15, 'listaEventosDoc': [...]}}
             inner_resp = res_data.get('respuesta', {})
-            _logger.warning("3. INNER_RESP: %s", inner_resp)
-            
+  
             cod_resp = inner_resp.codResp
-            _logger.warning("4. COD_RESP: %s", cod_resp)
-
+  
             # Convertimos a entero para comparar
             try:
                 cod_val = int(cod_resp)
@@ -2213,26 +2208,24 @@ class AccountMove(models.Model):
                 cod_val = 0
 
             if cod_val == 15:
-                _logger.warning("5. ENTRO AL IF, codResp ES 15")
+ 
                 lista_eventos = inner_resp.listaEventosDoc
-                _logger.warning("6. LISTA_EVENTOS: %s", lista_eventos)
+
                 for res in lista_eventos:
-                    _logger.warning("7. RES: %s", res)
+
                     if self.claim != "ACD":
                         if self.claim != "ERM":
                             self.claim = res.codEvento
-                            _logger.warning("8. ASIGNANDO CLAIM: %s", self.claim)
+                 
                             
             # Aquí va la lógica de cambio de estado que mencionamos antes
             date_end = self.create_date + relativedelta(days=8)
             if self.claim in ["ACD", "ERM", "PAG"]:
-                # Nota: En account.move el estado suele ser 'state', pero revisar si es 'sii_result'
-                # Si es 'state', cuidado con el flujo de Odoo. 
-                # Por ahora dejo la línea que comentamos antes, pero verifica el campo.
-                self.state = "accepted" 
-                _logger.warning("9. ESTADO CAMBIADO A ACCEPTED")
+                # CORREGIDO: Usamos sii_result en lugar de state
+                self.sii_result = "Aceptado"
+       
             elif date_end <= datetime.now() and self.claim == "N/D":
-                self.state = "accepted"
+                self.sii_result = "Aceptado"
 
         except Exception as e:
             # Importar tools si no está importado arriba
