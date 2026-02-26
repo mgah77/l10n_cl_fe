@@ -2399,13 +2399,13 @@ class AccountMove(models.Model):
         return res
 
     def cron_get_dte_claim(self):
-        # Dominio: Facturas emitidas (Cliente y NC) con estado Proceso
+        # Dominio: Facturas emitidas (Cliente) con estado Proceso
         domain = [
-            ('move_type', 'in', ['out_invoice', 'out_refund']),
+            ('move_type', '=', 'out_invoice'),
             ('sii_result', '=', 'Proceso'),
         ]
         
-        # Buscamos solo 1 registro, ordenado por fecha de creación (más antigua primero)
+        # Buscamos solo 1 registro, ordenado por fecha de emision (más antigua primero)
         invoice = self.search(domain, order='invoice_date asc', limit=1)
         
         if invoice:
