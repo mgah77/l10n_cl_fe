@@ -2191,7 +2191,7 @@ class AccountMove(models.Model):
             respuesta = fe.consulta_reclamo_documento(datos)
             key = "RUT%sT%sF%s" %(rut_emisor,
                                   tipo_dte, str(self.sii_document_number))
-            _logger.warning("folio: %s", str(self.sii_document_number))
+            
             # Obtenemos el diccionario interno usando la key
             res_data = respuesta.get(key, {})
                     
