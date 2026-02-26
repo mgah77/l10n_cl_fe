@@ -2237,6 +2237,9 @@ class AccountMove(models.Model):
                 
             elif self.claim in ["RFP", "RFT"]:
                 self.sii_result = "Reparo"
+            
+            elif self.claim == "NCA":
+                self.sii_result = "Anulado"
                 
             _logger.warning("sii: %s", self.sii_result)
             
