@@ -2185,6 +2185,8 @@ class AccountMove(models.Model):
                 "Folio": str(self.sii_document_number),
             }
         ]
+        _logger.warning("tipo dte : %s", tipo_dte)
+        _logger.warning("folio: %s", self.sii_document_number)
         try:
             respuesta = fe.consulta_reclamo_documento(datos)
             key = "RUT%sT%sF%s" %(rut_emisor,
@@ -2404,7 +2406,7 @@ class AccountMove(models.Model):
         ]
         
         # Buscamos solo 1 registro, ordenado por fecha de creación (más antigua primero)
-        invoice = self.search(domain, order='create_date asc', limit=1)
+        invoice = self.search(domain, order='invoice_date asc', limit=1)
         
         if invoice:
             # Si existe, ejecutamos la función.
