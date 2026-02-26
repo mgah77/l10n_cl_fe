@@ -2209,43 +2209,40 @@ class AccountMove(models.Model):
             except:
                 cod_val = 0
 
-            # Lógica para Código 15: Hay eventos registrados
             if cod_val == 15:
-               
                 lista_eventos = inner_resp.listaEventosDoc
-              
                 for res in lista_eventos:
-               
-                    if self.claim != "ACD":
+                    new_claim = res.codEvento
+                    
+                    # Lógica de prioridad:
+                    # 1. Si el evento es NCA, tiene máxima prioridad y sobrescribe todo.
+                    if new_claim == "NCA":
+                        self.claim = "NCA"
+                    
+                    # 2. Si ya tenemos NCA, no dejamos que ningún otro evento lo pise.
+                    elif self.claim == "NCA":
+                        continue
+                        
+                    # 3. Lógica estándar: No sobrescribir Aceptaciones (ACD) ni Recibos (ERM)
+                    elif self.claim != "ACD":
                         if self.claim != "ERM":
-                            self.claim = res.codEvento
-                           
-            
-            # Lógica para Código 16: Silencio Administrativo (No hay eventos)
+                            self.claim = new_claim
+
             if cod_val == 16:
                 date_end = self.invoice_date + timedelta(days=8)
                 if date_end <= date.today() and not self.claim:
                     self.sii_result = "Aceptado"
-            _logger.warning("claim: %s", self.claim)         
 
-            # Lógica de asignación de estado SII basada en el claim
             if self.claim in ["ACD", "ERM", "PAG"]:
                 self.sii_result = "Aceptado"
-                
             elif self.claim == "RCD":
                 self.sii_result = "Rechazado"
-                
             elif self.claim in ["RFP", "RFT"]:
                 self.sii_result = "Reparo"
-            
             elif self.claim == "NCA":
                 self.sii_result = "Anulado"
-                
-            _logger.warning("sii: %s", self.sii_result)
-            
 
         except Exception as e:
-            # Importar tools si no está importado arriba
             from odoo import tools
             if e.args[0][0] == 503:
                 raise UserError(
@@ -2402,7 +2399,7 @@ class AccountMove(models.Model):
         return res
 
     def cron_get_dte_claim(self):
-        # Dominio: Facturas emitidas (Cliente) con estado Proceso
+        # Dominio 1: Facturas emitidas con estado Proceso
         domain = [
             ('move_type', '=', 'out_invoice'),
             ('sii_result', '=', 'Proceso'),
@@ -2411,8 +2408,14 @@ class AccountMove(models.Model):
         # Buscamos solo 1 registro, ordenado por fecha de emision (más antigua primero)
         invoice = self.search(domain, order='invoice_date asc', limit=1)
         
+        # Si no encuentra nada, buscamos el segundo dominio
+        if not invoice:
+            domain2 = [
+                ('move_type', '=', 'out_invoice'),
+                ('payment_state', '=', 'reversed'),
+                ('sii_result', 'in', ['Aceptado', 'Rechazado']),
+            ]
+            invoice = self.search(domain2, order='invoice_date asc', limit=1)
+        
         if invoice:
-            # Si existe, ejecutamos la función.
-            # Si falla (conexión, error SII), se lanzará la excepción,
-            # el cron se detendrá y reintentará en la próxima ejecución programada.
             invoice.get_dte_claim()

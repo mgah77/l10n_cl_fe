@@ -44,7 +44,7 @@
                     <field name="sii_result" widget="badge" decoration-muted="sii_result in ['draft', 'NoEnviado', 'Anulado'] or state == 'cancel'" decoration-info="sii_result in ['Enviado', 'EnProceso']" decoration-success="sii_result in ['Aceptado', 'Proceso']" decoration-danger="sii_result == 'Rechazado'" decoration-warning="sii_result == 'Reparo'"/>
                 </field>
                 <xpath expr="//field[@name='payment_state']" position="attributes">                
-                    <attribute name="decoration-info">payment_state == 'reversed'</attribute>                    
+                    <attribute name="decoration-muted">payment_state == 'reversed'</attribute>                    
                 </xpath>
             </field>
         </record>
