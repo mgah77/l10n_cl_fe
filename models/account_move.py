@@ -2192,7 +2192,7 @@ class AccountMove(models.Model):
             
             # Obtenemos el diccionario interno usando la key
             res_data = respuesta.get(key, {})
-                     
+                    
             self.claim_description = res_data
             
             # Intentamos acceder a la estructura interna para actualizar claim
@@ -2200,7 +2200,7 @@ class AccountMove(models.Model):
             inner_resp = res_data.get('respuesta', {})
   
             cod_resp = inner_resp.codResp
-  
+            _logger.warning("cod: %s", cod_resp)
             # Convertimos a entero para comparar
             try:
                 cod_val = int(cod_resp)
@@ -2218,13 +2218,13 @@ class AccountMove(models.Model):
                         if self.claim != "ERM":
                             self.claim = res.codEvento
                            
-
+            
             # Lógica para Código 16: Silencio Administrativo (No hay eventos)
             if cod_val == 16:
                 date_end = self.invoice_date + timedelta(days=8)
                 if date_end <= date.today() and not self.claim:
                     self.sii_result = "Aceptado"
-                    
+            _logger.warning("claim: %s", self.claim)         
 
             # Lógica de asignación de estado SII basada en el claim
             if self.claim in ["ACD", "ERM", "PAG"]:
@@ -2236,7 +2236,7 @@ class AccountMove(models.Model):
             elif self.claim in ["RFP", "RFT"]:
                 self.sii_result = "Reparo"
                 
-
+            _logger.warning("sii: %s", self.sii_result)
             
 
         except Exception as e:
