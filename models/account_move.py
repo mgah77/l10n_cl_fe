@@ -2399,13 +2399,19 @@ class AccountMove(models.Model):
         return res
 
     def cron_get_dte_claim(self):
-        # Dominio 1: Facturas emitidas con estado Proceso
+        from datetime import date, timedelta
+        
+        # Calculamos la fecha límite (hoy menos 8 días)
+        limit_date = date.today() - timedelta(days=8)
+        
+        # Dominio 1: Facturas emitidas con estado Proceso y más de 8 días
         domain = [
             ('move_type', '=', 'out_invoice'),
             ('sii_result', '=', 'Proceso'),
+            ('invoice_date', '<=', limit_date), # Solo facturas con fecha igual o anterior al límite
         ]
         
-        # Buscamos solo 1 registro, ordenado por fecha de emision (más antigua primero)
+        # Buscamos solo 1 registro, ordenado por fecha de emisión (más antigua primero)
         invoice = self.search(domain, order='invoice_date asc', limit=1)
         
         # Si no encuentra nada, buscamos el segundo dominio
@@ -2414,6 +2420,7 @@ class AccountMove(models.Model):
                 ('move_type', '=', 'out_invoice'),
                 ('payment_state', '=', 'reversed'),
                 ('sii_result', 'in', ['Aceptado', 'Rechazado']),
+                ('invoice_date', '<=', limit_date), # Aplicamos el mismo filtro
             ]
             invoice = self.search(domain2, order='invoice_date asc', limit=1)
         
