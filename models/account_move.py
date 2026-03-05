@@ -2233,7 +2233,7 @@ class AccountMove(models.Model):
                 if date_end <= date.today() and not self.claim:
                     self.sii_result = "Aceptado"
 
-            if self.claim in ["ACD", "ERM", "PAG"]:
+            if self.claim in ["ACD", "ERM", "PAG", "ENC"]:
                 self.sii_result = "Aceptado"
             elif self.claim == "RCD":
                 self.sii_result = "Rechazado"
