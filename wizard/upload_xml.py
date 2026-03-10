@@ -490,7 +490,7 @@ class UploadXMLWizard(models.TransientModel):
         return self.env['purchase.order.line']
 
     def _prepare_line(self, line, move_type, company_id, fpos_id,
-                      price_included=False, exenta=False):
+                    price_included=False, exenta=False):
         line_id = self.env["mail.message.dte.document.line"]
         create_line = True
         if self.document_id:
@@ -498,7 +498,7 @@ class UploadXMLWizard(models.TransientModel):
                 [
                     ("sequence", "=", line.find("NroLinDet").text),
                     ("document_id", "=", self.document_id.id),
-                ],limit=1
+                ], limit=1
             )
             if not self.crear_po and not line_id.create_move_line:
                 create_line = False
@@ -506,11 +506,42 @@ class UploadXMLWizard(models.TransientModel):
                 create_line = False
         if not create_line:
             return False
+
         refund = move_type in ['out_refund', 'in_refund']
+        
+        # --- INICIO: Nueva lógica para procesar descuentos ---
+        # Obtener valores base del XML
+        qty = float(line.find("QtyItem").text) if line.find("QtyItem") is not None else 1.0
+        price_original = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else 0
+        price_subtotal_xml = float(line.find("MontoItem").text)
+        
+        # Inicializar variables
+        discount = 0
+        price = price_original
+        
+        # Verificar si hay descuento en pesos
+        descuento_monto = line.find("DescuentoMonto")
+        if descuento_monto is not None and descuento_monto.text:
+            descuento_total = float(descuento_monto.text)
+            if qty > 0:
+                # Calcular descuento unitario y aplicarlo al precio
+                descuento_unitario = descuento_total / qty
+                price = price_original - descuento_unitario
+                # NO calcular porcentaje de descuento
+                discount = 0
+            else:
+                # Si cantidad es 0, mantener precio original
+                price = price_original
+        else:
+            # Si no hay descuento en pesos, verificar descuento porcentual
+            if line.find("DescuentoPct") is not None:
+                discount = float(line.find("DescuentoPct").text)
+        # --- FIN: Nueva lógica ---
+
         data = {}
         product_id = line_id.product_id or self._buscar_producto(
-                                        line, company_id,
-                                        price_included, exenta, refund)
+            line, company_id, price_included, exenta, refund)
+        
         uom_id = False
         if not isinstance(product_id, str):
             data.update(
@@ -519,33 +550,30 @@ class UploadXMLWizard(models.TransientModel):
             uom_id = product_id.uom_id.id
         elif not product_id:
             return False
-        price_subtotal = float(line.find("MontoItem").text)
-        price = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else price_subtotal
 
         DscItem = line.find("DscItem")
         IndExe = line.find("IndExe")
         ind_exe = IndExe.text if IndExe is not None else False
-        
-        qty = float(line.find("QtyItem").text) if line.find("QtyItem") is not None else 1.0
-        
+
         # --- INICIO CORRECCIÓN: Ajustar price_unit si hay recargo ---
         recargo_monto = line.find("RecargoMonto")
         if recargo_monto is not None and recargo_monto.text:
             recargo = float(recargo_monto.text)
             # El price_subtotal ya incluye el recargo, calculamos price_unit efectivo
             price_unit_efectivo = (price * qty + recargo) / qty
-            price = price_unit_efectivo  # <--- SOBRESCRIBIR price para que incluya recargo
+            price = price_unit_efectivo
         # --- FIN CORRECCIÓN ---
 
         qty_field = "product_qty" if self.crear_po else "quantity"
         data.update(
             {
                 "sequence": line.find("NroLinDet").text,
-                "price_unit": price,
+                "price_unit": price,  # <-- Este es el precio final con descuento aplicado
                 qty_field: qty,
-                "price_subtotal": price_subtotal,
+                "price_subtotal": price_subtotal_xml,  # <-- Usamos el valor exacto del XML
             }
         )
+
         if self.pre_process:
             if isinstance(product_id, str):
                 data.update({
@@ -558,6 +586,8 @@ class UploadXMLWizard(models.TransientModel):
                     "create_pol": self.action in ['create_po', 'both'] or self.pre_process,
                 }
             )
+
+        # Procesar impuestos
         amount = 0
         sii_code = 0
         tax_ids = self.env["account.tax"]
@@ -570,17 +600,8 @@ class UploadXMLWizard(models.TransientModel):
             company_id=company_id,
             refund=refund
         )
-        if line.find("CodImpAdic") is not None:
-            #amount = 19
-            #tax_ids += self._buscar_impuesto(
-            #    type="purchase" if self.type == "compras" else "sale",
-            #    amount=amount, sii_code=line.find("CodImpAdic").text,
-            #    company_id=company_id,
-            #    refund=refund
-            #)
-            pass
 
-
+        # Ajustes por price_included
         if IndExe is None:
             tax_include = False
             for t in tax_ids:
@@ -589,7 +610,7 @@ class UploadXMLWizard(models.TransientModel):
             if price_included and not tax_include:
                 base = price
                 price = 0
-                base_subtotal = price_subtotal
+                base_subtotal = price_subtotal_xml
                 price_subtotal = 0
                 for t in tax_ids:
                     if t.amount > 0:
@@ -597,12 +618,14 @@ class UploadXMLWizard(models.TransientModel):
                         price_subtotal += base_subtotal / (1 + (t.amount / 100.0))
             elif not price_included and tax_include:
                 price = tax_ids.compute_all(price, self.env.user.company_id.currency_id, 1)["total_included"]
-                price_subtotal = tax_ids.compute_all(price_subtotal, self.env.user.company_id.currency_id, 1)[
+                price_subtotal = tax_ids.compute_all(price_subtotal_xml, self.env.user.company_id.currency_id, 1)[
                     "total_included"
                 ]
+
         if ind_exe and ind_exe == "6":
-            price = price *-1
-            price_subtotal = price_subtotal *-1                  
+            price = price * -1
+            price_subtotal = price_subtotal_xml * -1
+
         data.update(
             {
                 "name": DscItem.text if DscItem is not None else line.find("NmbItem").text,
@@ -610,32 +633,24 @@ class UploadXMLWizard(models.TransientModel):
                 "price_subtotal": price_subtotal,
             }
         )
+
         if self.crear_po:
             data.update({
                 "product_uom": uom_id,
                 "taxes_id": [(6, 0, tax_ids.ids)],
             })
         else:
-            discount = 0
-            if line.find("DescuentoPct") is not None:
-                discount = float(line.find("DescuentoPct").text)
-            elif line.find("DescuentoMonto") is not None:
-                desc_monto = float(line.find("DescuentoMonto").text)
-                # Verificamos que exista QtyItem y que el precio sea válido
-                if line.find("QtyItem") is not None and price > 0:
-                    qty = float(line.find("QtyItem").text)
-                    if qty > 0:
-                        discount = (desc_monto / (price * qty)) * 100
             purchase_line_id = line_id.purchase_line_id
             if not self.document_id and not purchase_line_id:
                 purchase_line_id = self._buscar_purchase_line_id(line)
             data.update({
                 "tax_ids": [(6, 0, tax_ids.ids)],
                 "product_uom_id": uom_id,
-                "discount": discount,
+                "discount": discount,  # <-- Solo se usa para descuentos porcentuales
                 "purchase_line_id": purchase_line_id.id,
                 "ind_exe": ind_exe,
             })
+
         return data
 
     def _create_tpo_doc(self, TpoDocRef, RazonRef=None):
