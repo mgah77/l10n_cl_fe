@@ -2173,6 +2173,11 @@ class AccountMove(models.Model):
 
     def get_dte_claim(self):
         tipo_dte = self.document_class_id.sii_code
+        
+        # Validación: Si no es 33, salimos de la función inmediatamente
+        if tipo_dte != 33:
+            return
+
         datos = self._get_datos_empresa(self.company_id)
         rut_emisor = self.company_id.partner_id.rut()
         if self.move_type in ["in_invoice", "in_refund"]:
@@ -2190,7 +2195,7 @@ class AccountMove(models.Model):
         try:
             respuesta = fe.consulta_reclamo_documento(datos)
             key = "RUT%sT%sF%s" %(rut_emisor,
-                                  tipo_dte, str(self.sii_document_number))
+                                tipo_dte, str(self.sii_document_number))
             
             # Obtenemos el diccionario interno usando la key
             res_data = respuesta.get(key, {})
@@ -2198,9 +2203,8 @@ class AccountMove(models.Model):
             self.claim_description = res_data
             
             # Intentamos acceder a la estructura interna para actualizar claim
-            # Basado en el JSON: {'status':..., 'respuesta': {'codResp': 15, 'listaEventosDoc': [...]}}
             inner_resp = res_data.get('respuesta', {})
-  
+
             cod_resp = inner_resp.codResp
             _logger.warning("cod: %s", cod_resp)
             # Convertimos a entero para comparar
