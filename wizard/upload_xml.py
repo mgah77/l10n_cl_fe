@@ -372,7 +372,13 @@ class UploadXMLWizard(models.TransientModel):
                                     company_id=company_id,
                                     refund=refund)
         uom = 'UnmdItem'
-        price = float(line.find("PrcItem").text if line.find("PrcItem") is not None else line.find("MontoItem").text)
+
+        monto_item = float(line.find("MontoItem").text) if line.find("MontoItem") is not None else 0
+        if line.find("OtrMnda") is not None:
+            price = monto_item / qty if qty > 0 else monto_item
+        else:
+            price = float(line.find("PrcItem").text if line.find("PrcItem") is not None else line.find("MontoItem").text)
+
         if price_included:
             price = imp.compute_all(price, self.env.user.company_id.currency_id, 1)["total_excluded"]
         if ind_exe and ind_exe == "6":
@@ -512,8 +518,12 @@ class UploadXMLWizard(models.TransientModel):
         # --- INICIO: Nueva lógica para procesar descuentos ---
         # Obtener valores base del XML
         qty = float(line.find("QtyItem").text) if line.find("QtyItem") is not None else 1.0
-        price_original = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else 0
-        price_subtotal_xml = float(line.find("MontoItem").text)
+        monto_item = float(line.find("MontoItem").text) if line.find("MontoItem") is not None else 0
+        price_subtotal_xml = monto_item
+        if line.find("OtrMnda") is not None:
+            price_original = monto_item / qty if qty > 0 else monto_item
+        else:
+            price_original = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else 0
         price_subtotal = price_subtotal_xml
         
         # Inicializar variables
