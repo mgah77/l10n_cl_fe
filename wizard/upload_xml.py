@@ -523,7 +523,7 @@ class UploadXMLWizard(models.TransientModel):
         if line.find("OtrMnda") is not None:
             price_original = monto_item / qty if qty > 0 else monto_item
         else:
-            price_original = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else 0
+            price_original = float(line.find("PrcItem").text) if line.find("PrcItem") is not None else (monto_item / qty)
         price_subtotal = price_subtotal_xml
         
         # Inicializar variables
