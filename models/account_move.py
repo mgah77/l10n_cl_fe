@@ -2407,11 +2407,14 @@ class AccountMove(models.Model):
         
         # Calculamos la fecha límite (hoy menos 8 días)
         limit_date = date.today() - timedelta(days=8)
+
+        boleta_code = ['39', '41']
         
         # Dominio 1: Facturas emitidas con estado Proceso y más de 8 días
         domain = [
             ('move_type', '=', 'out_invoice'),
             ('sii_result', '=', 'Proceso'),
+            ('sii_code', 'not in', boleta_code),
             ('invoice_date', '<=', limit_date), # Solo facturas con fecha igual o anterior al límite
         ]
         
@@ -2424,6 +2427,7 @@ class AccountMove(models.Model):
                 ('move_type', '=', 'out_invoice'),
                 ('payment_state', '=', 'reversed'),
                 ('sii_result', 'in', ['Aceptado', 'Rechazado']),
+                ('sii_code', 'not in', boleta_code),
                 ('invoice_date', '<=', limit_date), # Aplicamos el mismo filtro
             ]
             invoice = self.search(domain2, order='invoice_date asc', limit=1)
