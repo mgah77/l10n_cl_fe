@@ -2426,7 +2426,7 @@ class AccountMove(models.Model):
             domain2 = [
                 ('move_type', '=', 'out_invoice'),
                 ('payment_state', '=', 'reversed'),
-                ('sii_result', 'in', ['Aceptado', 'Rechazado']),
+                ('sii_result', 'in', ['Aceptado', 'Rechazado', 'Reparo']),
                 ('sii_code', 'not in', boleta_code),
                 ('invoice_date', '<=', limit_date), # Aplicamos el mismo filtro
             ]
