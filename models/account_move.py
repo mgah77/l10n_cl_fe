@@ -2457,35 +2457,35 @@ class AccountMove(models.Model):
             HAVING ROUND(SUM(line.balance), currency.decimal_places) != 0
         ''', [tuple(moves.ids)])
 
-               # ====================================================================
-        # BLOQUE DE AUDITORIA (LOG CORREGIDO)
+        # ====================================================================
+        # BLOQUE DE AUDITORIA (LOG)
         # ====================================================================
         import logging
         _logger = logging.getLogger(__name__)
         
-        # Capturamos los resultados
+        # Capturamos los resultados que la función va a devolver
         res = self._cr.fetchall()
         
         if res:
             _logger.warning("=================================================================")
-            _logger.warning("!!! DETECTADO MOVIMIENTO DESBALANCEADO (DEBUG START) !!!")
+            _logger.warning("!!! DETECTADO MOVIMIENTO DESBALANCEADO (CAPTURA ANTES DE ROLLBACK) !!!")
             _logger.warning("=================================================================")
             for move_id, sum_debit, sum_credit in res:
                 _logger.warning(f"Move ID: {move_id} | Total Debit: {sum_debit} | Total Credit: {sum_credit}")
                 
-                # Consulta EXTRA: Solo Nombre, Debit, Credit, Balance y Amount Currency
-                self._cr.execute('''
-                    SELECT aa.name, line.debit, line.credit, line.balance, line.amount_currency
-                    FROM account_move_line line
-                    JOIN account_account aa ON aa.id = line.account_id
-                    WHERE line.move_id = %s
-                ''', (move_id,))
-                
-                lineas = self._cr.fetchall()
-                for name, debit, credit, balance, amount_currency in lineas:
-                    _logger.warning(
-                        f"  -> Cuenta: {name} | Debit: {debit} | Credit: {credit} | Balance: {balance} | Amount Currency: {amount_currency}"
-                    )
+            # Hacemos una consulta EXTRA para ver el detalle interno de las líneas
+            self._cr.execute('''
+                SELECT aa.name, line.debit, line.credit, line.balance, line.amount_currency
+                FROM account_move_line line
+                JOIN account_account aa ON aa.id = line.account_id
+                WHERE line.move_id = %s
+            ''', (move_id,))
+            
+            lineas = self._cr.fetchall()
+            for name, debit, credit, balance, amount_currency in lineas:
+                _logger.warning(
+                    f"  -> Cuenta: {name} | Debit: {debit} | Credit: {credit} | Balance: {balance} | Amount Currency: {amount_currency}"
+                )
             _logger.warning("=================================================================")
         
         # ====================================================================
