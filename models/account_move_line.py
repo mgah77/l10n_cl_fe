@@ -110,19 +110,6 @@ class AccountInvoiceLine(models.Model):
             for tax in compute_all_currency['taxes']:
                 if tax['amount']:
                     rpl = self.env['account.tax.repartition.line'].sudo().browse(tax['tax_repartition_line_id'])
-                    
-                    # --- INICIO CORRECCIÓN ---
-                    # Calculamos el balance base
-                    balance_raw = tax['amount'] / rate
-                    
-                    # Si es Nota de Crédito de Cliente y el balance es negativo, lo invertimos
-                    # El IVA en una NC debe ser Débito (Positivo)
-                    if line.move_id.move_type == 'out_refund' and balance_raw < 0:
-                        balance_final = -balance_raw
-                    else:
-                        balance_final = balance_raw
-                    # --- FIN CORRECCIÓN ---
-
                     compute_all_tax[frozendict({
                         'tax_repartition_line_id': tax['tax_repartition_line_id'],
                         'group_tax_id': tax['group'] and tax['group'].id or False,
@@ -135,7 +122,7 @@ class AccountInvoiceLine(models.Model):
                         'move_id': line.move_id.id,
                     })] = {
                         'name': tax['name'],
-                        'balance': balance_final, # Usamos la variable corregida
+                        'balance': tax['amount'] / rate,
                         'amount_currency': tax['amount'],
                         'tax_base_amount': tax['base'] / rate * (-1 if line.tax_tag_invert else 1),
                     }
