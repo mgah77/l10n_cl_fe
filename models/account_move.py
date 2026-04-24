@@ -2479,7 +2479,7 @@ class AccountMove(models.Model):
                 
                 # Hacemos una consulta EXTRA para ver el detalle interno de las líneas
                 self._cr.execute('''
-                    SELECT aa.code, aa.name, aa.account_type, line.debit, line.credit, line.amount_currency
+                    SELECT aa.name, aa.account_type, line.debit, line.credit, line.amount_currency
                     FROM account_move_line line
                     JOIN account_account aa ON aa.id = line.account_id
                     WHERE line.move_id = %s
@@ -2489,7 +2489,7 @@ class AccountMove(models.Model):
                 # Ajuste en el desempaquetado: 5 elementos (code, name, type, debit, credit)
                 for code, name, acc_type, debit, credit in lineas:
                     _logger.warning(
-                        f"  -> Cuenta: {code} {name} | Tipo Config: {acc_type} | Debit: {debit} | Credit: {credit} | Curre: {amount_currency}"
+                        f"  -> Cuenta: {name} | Tipo Config: {acc_type} | Debit: {debit} | Credit: {credit} | Curre: {amount_currency}"
                     )
             _logger.warning("=================================================================")
         
