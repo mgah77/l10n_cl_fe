@@ -2444,8 +2444,10 @@ class AccountMove(models.Model):
         # are already done. Then, this query MUST NOT depend on computed stored fields.
         # It happens as the ORM calls create() with the 'no_recompute' statement.
         self.env['account.move.line'].flush_model(['debit', 'credit', 'balance', 'currency_id', 'move_id'])
+        
+        # MODIFICACIÓN AQUÍ: Se agrega move.move_type al SELECT y al GROUP BY
         self._cr.execute('''
-            SELECT line.move_id,
+            SELECT line.move_id, move.move_type,  -- <--- AGREGADO move.move_type
                    ROUND(SUM(line.debit), currency.decimal_places) debit,
                    ROUND(SUM(line.credit), currency.decimal_places) credit
               FROM account_move_line line
@@ -2453,7 +2455,7 @@ class AccountMove(models.Model):
               JOIN res_company company ON company.id = move.company_id
               JOIN res_currency currency ON currency.id = company.currency_id
              WHERE line.move_id IN %s
-          GROUP BY line.move_id, currency.decimal_places
+          GROUP BY line.move_id, move.move_type, currency.decimal_places  -- <--- AGREGADO move.move_type
             HAVING ROUND(SUM(line.balance), currency.decimal_places) != 0
         ''', [tuple(moves.ids)])
 
@@ -2463,28 +2465,31 @@ class AccountMove(models.Model):
         import logging
         _logger = logging.getLogger(__name__)
         
-        # Capturamos los resultados que la función va a devolver
+        # Capturamos los resultados
         res = self._cr.fetchall()
         
         if res:
             _logger.warning("=================================================================")
             _logger.warning("!!! DETECTADO MOVIMIENTO DESBALANCEADO (CAPTURA ANTES DE ROLLBACK) !!!")
             _logger.warning("=================================================================")
-            for move_id, sum_debit, sum_credit in res:
-                _logger.warning(f"Move ID: {move_id} | Total Debit: {sum_debit} | Total Credit: {sum_credit}")
+            
+            # MODIFICACIÓN AQUÍ: Desempaquetamos move_type junto con move_id
+            for move_id, move_type, sum_debit, sum_credit in res:
+                _logger.warning(f"Move ID: {move_id} | Type: {move_type} | Total Debit: {sum_debit} | Total Credit: {sum_credit}")
                 
                 # Hacemos una consulta EXTRA para ver el detalle interno de las líneas
                 self._cr.execute('''
-                    SELECT aa.code, aa.name, aa.account_type, line.debit, line.credit, line.move_id.move_type
+                    SELECT aa.code, aa.name, aa.account_type, line.debit, line.credit
                     FROM account_move_line line
                     JOIN account_account aa ON aa.id = line.account_id
                     WHERE line.move_id = %s
                 ''', (move_id,))
                 
                 lineas = self._cr.fetchall()
-                for code, name, acc_type, internal_type, debit, credit in lineas:
+                # Ajuste en el desempaquetado: 5 elementos (code, name, type, debit, credit)
+                for code, name, acc_type, debit, credit in lineas:
                     _logger.warning(
-                        f"  -> Cuenta: {code} {name} | Tipo Config: {acc_type} | Tipo Int: {internal_type} | Debit: {debit} | Credit: {credit}"
+                        f"  -> Cuenta: {code} {name} | Tipo Config: {acc_type} | Debit: {debit} | Credit: {credit}"
                     )
             _logger.warning("=================================================================")
         
