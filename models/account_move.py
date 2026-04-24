@@ -2489,7 +2489,7 @@ class AccountMove(models.Model):
                 # Ajuste en el desempaquetado: 5 elementos (code, name, type, debit, credit)
                 for code, name, acc_type, debit, credit in lineas:
                     _logger.warning(
-                        f"  -> Cuenta: {code} {name} | Tipo Config: {acc_type} | Debit: {debit} | Credit: {credit} | currency: {amount_currency}""
+                        f"  -> Cuenta: {code} {name} | Tipo Config: {acc_type} | Debit: {debit} | Credit: {credit} | Curre: {amount_currency}"
                     )
             _logger.warning("=================================================================")
         
