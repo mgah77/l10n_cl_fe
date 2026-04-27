@@ -629,16 +629,45 @@ class AccountMove(models.Model):
             where_string += " AND (use_documents = FALSE OR use_documents is NULL) "
 
         return where_string, param
-
+        
     def _set_next_sequence(self):
         self.ensure_one()
+        
+        # --- INICIO LOGS DE DEPURACIÓN ---
+        _logger.info("============================================")
+        _logger.info("DEBUG _set_next_sequence Iniciado para ID: %s", self.id)
+        _logger.info("Diario Actual: %s (ID: %s)", self.journal_id.name, self.journal_id.id)
+        _logger.info("¿Usa Documentos?: %s", self.use_documents)
+        _logger.info("Journal Document Class ID: %s", self.journal_document_class_id)
+        
+        if self.journal_document_class_id:
+            _logger.info("  -> Secuencia ID configurada: %s", self.journal_document_class_id.sequence_id)
+            if self.journal_document_class_id.sequence_id:
+                _logger.info("  -> Nombre de la Secuencia: %s", self.journal_document_class_id.sequence_id.name)
+            else:
+                _logger.warning("  -> ERROR: No hay secuencia asociada en journal_document_class_id")
+            
+            if self.journal_document_class_id.sii_document_class_id:
+                _logger.info("  -> Tipo de Doc SII: %s", self.journal_document_class_id.sii_document_class_id.name)
+        else:
+            _logger.warning("  -> ERROR: No hay journal_document_class_id seleccionado en el diario.")
+        # --- FIN LOGS DE DEPURACIÓN ---
+
         if self.use_documents and self.journal_document_class_id.sequence_id:
             if not (self.journal_id.restore_mode or self._context.get("restore_mode", False)):
+                _logger.info("Ejecutando sequence_id.next_by_id()...")
                 self.sii_document_number = self.journal_document_class_id.sequence_id.next_by_id()
+                _logger.info("Número obtenido sii_document_number: %s", self.sii_document_number)
+            else:
+                _logger.info("Modo restauración detectado, se omite la generación de secuencia.")
+                
             self[self._sequence_field] = '%s%s' % (self.document_class_id.doc_code_prefix, self.sii_document_number)
+            _logger.info("Nombre final del documento (campo name): %s", self[self._sequence_field])
         else:
+            _logger.info("No se cumplen condiciones para secuencia SII, usando método estándar (super)...")
             super(AccountMove, self)._set_next_sequence()
-
+        
+        _logger.info("============================================")
     def _post(self, soft=True):
         to_post = super(AccountMove, self)._post(soft=soft)
         to_send = {}
