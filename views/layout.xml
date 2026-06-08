@@ -158,16 +158,24 @@
                                     <td class="table-cell-no-padding">
                                         <strong>Giro:</strong>
                                     </td>
-                                    <td class="table-cell-wide">
-                                        <t t-if="o.acteco_id">
-                                            <span t-field="o.acteco_id.name" class="text-center" style="color:black; text-align:center;"/>
-                                            <br />
-                                        </t>
-                                        <t t-else="">
-                                            <span t-field="o.activity_description.name" class="text-center" style="color:black; text-align:center;"/>
-                                            <br />
-                                        </t>
-                                    </td>
+                                        <td class="table-cell-wide">
+                                            <!-- Si es factura de proveedor, mostramos el giro de MI compañía (Receptor) -->
+                                            <t t-if="o.move_type in ['in_invoice', 'in_refund'] and not o.document_class_id.es_factura_compra()">
+                                                <span t-field="o.company_id.partner_id.activity_description.name" class="text-center" style="color:black; text-align:center;"/>
+                                                <br />
+                                            </t>
+                                            <!-- Si es factura de cliente, mantenemos la lógica original (Emisor) -->
+                                            <t t-else="">
+                                                <t t-if="o.acteco_id">
+                                                    <span t-field="o.acteco_id.name" class="text-center" style="color:black; text-align:center;"/>
+                                                    <br />
+                                                </t>
+                                                <t t-else="">
+                                                    <span t-field="o.activity_description.name" class="text-center" style="color:black; text-align:center;"/>
+                                                    <br />
+                                                </t>
+                                            </t>
+                                        </td>
                                     <td class="table-cell-no-padding">
                                         <strong>Condición de Pago:</strong>
                                     </td>
